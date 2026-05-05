@@ -6,6 +6,10 @@
 git clone https://github.com/adrianluna/docker-valkey-glide.git
 ```
 
+## Update docker-compose.yml 
+
+You need to update the volumes in the `docker-compose.yml` according to your directory
+
 ## Create containers
 
 ```sh
