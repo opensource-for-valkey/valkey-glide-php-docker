@@ -14,27 +14,31 @@ cd valkey-glide-php-docker
 
 # Build and start all services
 docker compose up -d --build
-
-# Install PHPUnit in the PHP container
-docker exec valkey-glide-php-docker-php-1 composer require --dev phpunit/phpunit
-
-# Test standalone Valkey connection
-docker exec valkey-glide-php-docker-php-1 ./vendor/bin/phpunit --bootstrap /var/www/html/helpers.php /var/www/html/ValkeyStandaloneTest.php
 ```
 
-## Web Demos
+## Testing
 
-Place your PHP web files in `./src/public/` and access them at `http://localhost`.
+Run CLI demos:
+```bash
+# Install PHPUnit in the PHP container
+docker exec valkey-glide-php-docker-php composer require --dev phpunit/phpunit
+
+# Test standalone Valkey connection
+docker exec valkey-glide-php-docker-php ./vendor/bin/phpunit --bootstrap /var/www/html/helpers.php /var/www/html/ValkeyStandaloneTest.php
+```
+
+**Note:** Cluster configuration is still work in progress.
 
 ## Project Structure
 
 | File | Description |
 |------|-------------|
-| `standalone.php` | CLI demo — connects to a single Valkey instance (strings, hashes, lists, sets, sorted sets, TTL). |
-| `cluster.php` | CLI demo — connects to a 3-node cluster (auto-routing, hash tags, cross-shard MGET, counters). |
+| `src/ValkeyTestBase.php` | Abstract PHPUnit test class with all 18 test methods. |
+| `src/ValkeyStandaloneTest.php` | Standalone test implementation (extends ValkeyTestBase). |
 | `php.dockerfile` | PHP 8.4 FPM with Rust toolchain and valkey-glide compiled from source. |
-| `nginx.dockerfile` | Nginx reverse proxy for PHP-FPM. |
-| `docker-compose.yml` | Full stack: Nginx, PHP-FPM, standalone Valkey, 3-node cluster with auto-init. |
+| `nginx.dockerfile` | Nginx stable-alpine with PHP-FPM integration. |
+| `valkey.dockerfile` | Valkey 9 Alpine image. |
+| `docker-compose.yml` | Full stack: Nginx, PHP-FPM, MariaDB, standalone Valkey. |
 
 ## Architecture
 
