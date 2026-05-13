@@ -1,8 +1,7 @@
-FROM valkey/valkey:8.1
+FROM valkey/valkey:9-alpine
 
-ENV VALKEYUSER=aluna
-ENV VALKEYGROUP=aluna
+ENV VALKEYUSER=laravel
+ENV VALKEYGROUP=laravel
 
-# RUN adduser -g ${VALKEYGROUP} -s /bin/sh -D ${VALKEYUSER}
-RUN groupadd -g 1000 ${VALKEYGROUP} && \
-    useradd -r -u 1000 -g ${VALKEYGROUP} ${VALKEYUSER}
+RUN addgroup -g 1001 ${VALKEYGROUP} && \
+    adduser -u 1001 -G ${VALKEYGROUP} -s /bin/sh -D ${VALKEYUSER}

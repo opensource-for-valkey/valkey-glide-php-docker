@@ -1,7 +1,9 @@
 FROM php:8.4-fpm
 
-ENV PHPGROUP=aluna
-ENV PHPUSER=aluna
+ARG VALKEY_GLIDE_VERSION=1.0.0
+
+ENV PHPGROUP=laravel
+ENV PHPUSER=laravel
 
 RUN groupadd -g 1000 ${PHPGROUP} && \
     useradd -r -u 1000 -g ${PHPGROUP} -s /bin/sh ${PHPUSER}
@@ -60,11 +62,11 @@ RUN curl -L https://github.com/php/pie/releases/latest/download/pie.phar -o /usr
 
 RUN cargo install cbindgen
 
-# Download the package
-RUN curl -L https://github.com/valkey-io/valkey-glide-php/releases/download/v1.0.0/valkey_glide-1.0.0.tgz -o valkey_glide-1.0.0.tgz
+# Download and compile valkey-glide PHP extension
+RUN curl -L https://github.com/valkey-io/valkey-glide-php/releases/download/v${VALKEY_GLIDE_VERSION}/valkey_glide-${VALKEY_GLIDE_VERSION}.tgz -o valkey_glide-${VALKEY_GLIDE_VERSION}.tgz
 
 # Install with PECL
-RUN pecl install valkey_glide-1.0.0.tgz
+RUN pecl install valkey_glide-${VALKEY_GLIDE_VERSION}.tgz
 
 RUN pie --version
 
@@ -73,6 +75,6 @@ CMD ["php-fpm", "-y", "/usr/local/etc/php-fpm.conf", "-R"]
 ADD valkey.ini /usr/local/etc/php/conf.d/valkey.ini
 
 # Switch user
-# USER aluna
+# USER laravel
 
 WORKDIR /var/www/html
