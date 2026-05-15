@@ -9,7 +9,7 @@ A Docker environment for developing with [valkey-glide-php](https://github.com/v
 ## Quick Start
 
 ```bash
-git clone https://github.com/Valkey-PHP/valkey-glide-php-docker.git
+git clone https://github.com/opensource-for-valkey/valkey-glide-php-docker.git
 cd valkey-glide-php-docker
 
 # Build and start all services
@@ -20,11 +20,14 @@ docker compose up -d --build
 
 Run CLI demos:
 ```bash
+# SSH into the container if needed
+docker exec -it valkey-glide-php-docker-php-1 bash
+
 # Install PHPUnit in the PHP container
-docker exec valkey-glide-php-docker-php composer require --dev phpunit/phpunit
+docker exec valkey-glide-php-docker-php-1 sh -c "cd /var/www/cli/ && composer require --dev phpunit/phpunit"
 
 # Test standalone Valkey connection
-docker exec valkey-glide-php-docker-php ./vendor/bin/phpunit --bootstrap /var/www/html/helpers.php /var/www/html/ValkeyStandaloneTest.php
+docker exec valkey-glide-php-docker-php-1 /var/www/cli/vendor/bin/phpunit /var/www/cli/ValkeyStandaloneTest.php
 ```
 
 **Note:** Cluster configuration is still work in progress.
@@ -33,8 +36,8 @@ docker exec valkey-glide-php-docker-php ./vendor/bin/phpunit --bootstrap /var/ww
 
 | File | Description |
 |------|-------------|
-| `src/ValkeyTestBase.php` | Abstract PHPUnit test class with all 18 test methods. |
-| `src/ValkeyStandaloneTest.php` | Standalone test implementation (extends ValkeyTestBase). |
+| `tests/ValkeyTestBase.php` | Abstract PHPUnit test class with all 18 test methods. |
+| `tests/ValkeyStandaloneTest.php` | Standalone test implementation (extends ValkeyTestBase). |
 | `php.dockerfile` | PHP 8.4 FPM with Rust toolchain and valkey-glide compiled from source. |
 | `nginx.dockerfile` | Nginx stable-alpine with PHP-FPM integration. |
 | `valkey.dockerfile` | Valkey 9 Alpine image. |
