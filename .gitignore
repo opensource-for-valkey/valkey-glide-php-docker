@@ -1,33 +1,64 @@
 mysql/
 src/
 
-vendor/
-node_modules/
-npm-debug.log
-yarn-error.log
+# MacOS =================================================================================
 
-# Laravel 4 specific
-bootstrap/compiled.php
-app/storage/
+# General
+.DS_Store
+.localized
+__MACOSX/
+.AppleDouble
+.LSOverride
+Icon[
+]
 
-# Laravel 5 & Lumen specific
-public/storage
-public/hot
+# Resource forks
+._*
 
-# Laravel 5 & Lumen specific with changed public path
-public_html/storage
-public_html/hot
+# Files and directories that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.com.apple.timemachine.supported
+.PKInstallSandboxManager
+.PKInstallSandboxManager-SystemSoftware
+.hotfiles.btree
+.vol
+.file
+.disk_label*
+lost+found
+.HFS+ Private Directory Data[
+]
 
-storage/*.key
-.env
-Homestead.yaml
-Homestead.json
-/.vagrant
-.phpunit.result.cache
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
 
-/public/build
-/storage/pail
-.env.backup
-.env.production
-.phpactor.json
-auth.json
+# Mac OS 6 to 9
+Desktop DB
+Desktop DF
+TheFindByContentFolder
+TheVolumeSettingsFolder
+.FBCIndex
+.FBCSemaphoreFile
+.FBCLockFolder
+
+# Quota system
+.quota.group
+.quota.user
+.quota.ops.group
+.quota.ops.user
+
+# TimeMachine
+Backups.backupdb
+.MobileBackups
+.MobileBackups.trash
+MobileBackups.trash
+tmbootpicker.efi
