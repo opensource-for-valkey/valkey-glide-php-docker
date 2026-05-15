@@ -47,13 +47,15 @@ docker exec valkey-glide-php-docker-php ./vendor/bin/phpunit --bootstrap /var/ww
     :80 ───────────────►│    Nginx    │
                         └──────┬──────┘
                                │ fastcgi :9000
-                        ┌──────▼──────┐
+                               ▼
+                        ┌─────────────┐
                         │  PHP-FPM    │
                         │  + valkey   │
                         │    glide    │
                         └──┬──────┬───┘
                            │      │
-              ┌────────────▼┐  ┌──▼────────────────────┐
+                           ▼      ▼
+              ┌─────────────┐  ┌────────────────────────┐
               │   valkey    │  │  valkey-node-{1,2,3}   │
               │  :6379      │  │  :7000, :7001, :7002   │
               │ (standalone)│  │  (cluster)             │
