@@ -7,6 +7,7 @@ services:
       - 80:80
     volumes:
       - ./src:/var/www/html
+      - ./tests:/var/www/cli
     depends_on:
       - php
     networks:
@@ -18,6 +19,7 @@ services:
       dockerfile: php.dockerfile
     volumes:
       - ./src:/var/www/html
+      - ./tests:/var/www/cli
     depends_on:
       - valkey
     networks:
