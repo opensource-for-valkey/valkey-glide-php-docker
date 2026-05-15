@@ -32,6 +32,8 @@ services:
     volumes:
       - ./mysql:/var/lib/mysql
       - ./databases-backup.sql:/docker-entrypoint-initdb.d/databases-backup.sql
+    networks:
+      - valkey-net
 
   valkey:
     build:
