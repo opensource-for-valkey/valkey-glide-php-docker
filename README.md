@@ -42,24 +42,19 @@ docker exec valkey-glide-php-docker-php ./vendor/bin/phpunit --bootstrap /var/ww
 
 ## Architecture
 
-```
-                        ┌─────────────┐
-    :80 ───────────────►│    Nginx    │
-                        └──────┬──────┘
-                               │ fastcgi :9000
-                               ▼
-                        ┌─────────────┐
-                        │  PHP-FPM    │
-                        │  + valkey   │
-                        │    glide    │
-                        └──┬──────┬───┘
-                           │      │
-                           ▼      ▼
-              ┌─────────────┐  ┌────────────────────────┐
-              │   valkey    │  │  valkey-node-{1,2,3}   │
-              │  :6379      │  │  :7000, :7001, :7002   │
-              │ (standalone)│  │  (cluster)             │
-              └─────────────┘  └────────────────────────┘
+```mermaid
+flowchart TD
+    nginx@{ shape: rect, label: "Nginx" }
+    php@{ shape: rect, label: "PHP-FPM \n + valkey glide" }
+    v@{ shape: lin-cyl, label: "valkey \n :6379 \n (standalone)" }
+    vn@{ shape: processes, label: "valkey-node-{1,2,3} \n :700, :7001, :7002 \n (cluster)"}
+
+    START[ ] --- |:80| nginx
+    nginx --- |fastcgi: 9000| php
+    php --> v 
+    php --> vn
+
+    style START fill:#FFFFFF00, stroke:#FFFFFF00;
 ```
 
 ## Configuration
