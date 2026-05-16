@@ -6,6 +6,9 @@ up-standalone:
 down-standalone:
 	docker compose down -v
 
+stop-standalone:
+	docker compose stop
+
 up-cluster:
 	docker compose -f docker-compose.cluster.yml up -d --build
 	@if [ ! -f data/valkey-1/nodes.conf ]; then \
@@ -17,3 +20,6 @@ up-cluster:
 
 down-cluster:
 	docker compose -f docker-compose.cluster.yml down -v
+
+stop-cluster:
+	docker compose -f docker-compose.cluster.yml stop
