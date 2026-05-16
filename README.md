@@ -102,6 +102,7 @@ To force a re-initialization, remove the data folder and bring the cluster back 
 ```bash
 make down-cluster
 rm -rf data/
+make build-cluster
 make up-cluster
 ```
 
@@ -139,7 +140,7 @@ flowchart TD
     nginx@{ shape: rect, label: "Nginx" }
     php@{ shape: rect, label: "PHP-FPM \n + valkey glide" }
     v@{ shape: lin-cyl, label: "valkey \n :6379 \n (standalone)" }
-    vn@{ shape: processes, label: "valkey-node-{1,2,3} \n :700, :7001, :7002 \n (cluster)"}
+    vn@{ shape: processes, label: "valkey-node-{1,2,3} \n :7001, :7002, :7003 \n (cluster)"}
 
     START[ ] --- |:80| nginx
     nginx --- |fastcgi: 9000| php
