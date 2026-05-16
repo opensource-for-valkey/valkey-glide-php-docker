@@ -16,8 +16,15 @@ Valkey setup supporting both standalone and cluster modes, with configurable dat
 git clone https://github.com/opensource-for-valkey/docker-valkey-glide.git
 cd docker-valkey-glide
 
-# Build and start all services
+# First time, or after changes to the dockerfile/entrypoint
+make build-standalone
+ 
+# Start
 make up-standalone
+ 
+# Stop and remove volumes
+make down-standalone
+```
 ```
 
 Connect with:
@@ -37,6 +44,9 @@ A 6-node cluster — 3 primaries and 3 replicas — across ports `7001–7006`. 
 | valkey-3 | 7003 | Primary | 10923 – 16383 |
  
 ```bash
+# First time, or after changes to the dockerfile/entrypoint
+make build-cluster
+ 
 # Start (initializes cluster automatically on first run)
 make up-cluster
  
@@ -165,9 +175,11 @@ The networks are intentionally separate to avoid conflicts when running both mod
  
 | Command | Description |
 |---------|-------------|
-| `make up-standalone` | Build and start standalone instance |
+| `make build-standalone` | Build the standalone image |
+| `make up-standalone` | Start standalone instance |
 | `make down-standalone` | Stop standalone and remove volumes |
-| `make up-cluster` | Build and start cluster, init on first run |
+| `make build-cluster` | Build the cluster image |
+| `make up-cluster` | Start cluster, init on first run |
 | `make down-cluster` | Stop cluster and remove volumes |
  
 
