@@ -35,7 +35,7 @@ docker exec -it valkey valkey-cli -p 6379
 
 ### Cluster
  
-A 6-node cluster — 3 primaries and 3 replicas — across ports `7001–7006`. Hash slots are distributed evenly across the 3 primaries:
+A 3-node cluster — across ports `7001–7003`. Hash slots are distributed evenly across the 3 primaries:
  
 | Node | Port | Role | Slots |
 |------|------|------|-------|
