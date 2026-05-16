@@ -13,8 +13,8 @@ Valkey setup supporting both standalone and cluster modes, with configurable dat
 ### Standalone
 
 ```bash
-git clone https://github.com/opensource-for-valkey/valkey-glide-php-docker.git
-cd valkey-glide-php-docker
+git clone https://github.com/opensource-for-valkey/docker-valkey-glide.git
+cd docker-valkey-glide
 
 # Build and start all services
 make up-standalone
@@ -100,13 +100,13 @@ make up-cluster
 Run CLI demos:
 ```bash
 # SSH into the container if needed
-docker exec -it valkey-glide-php-docker-php-1 bash
+docker exec -it docker-valkey-glide-php-1 bash
 
 # Install PHPUnit in the PHP container
-docker exec valkey-glide-php-docker-php-1 sh -c "cd /var/www/cli/ && composer require --dev phpunit/phpunit"
+docker exec docker-valkey-glide-php-1 sh -c "cd /var/www/cli/ && composer require --dev phpunit/phpunit"
 
 # Test standalone Valkey connection
-docker exec valkey-glide-php-docker-php-1 /var/www/cli/vendor/bin/phpunit /var/www/cli/ValkeyStandaloneTest.php
+docker exec docker-valkey-glide-php-1 /var/www/cli/vendor/bin/phpunit /var/www/cli/ValkeyStandaloneTest.php
 ```
 
 ## Project Structure
