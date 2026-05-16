@@ -55,6 +55,7 @@ make down-cluster
 ```
  
 Connect with:
+
 ```bash
 # The -c flag enables cluster-redirect mode
 docker exec -it valkey-1 valkey-cli -c -p 7001
