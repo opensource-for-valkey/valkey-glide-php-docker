@@ -2,19 +2,98 @@
 
 A Docker environment for developing with [valkey-glide-php](https://github.com/valkey-io/valkey-glide-php) — includes Nginx, PHP-FPM, and both standalone and cluster Valkey instances.
 
+Valkey setup supporting both standalone and cluster modes, with configurable data persistence via bind mounts.
+
 ## Prerequisites
 
 - Docker & Docker Compose
 
 ## Quick Start
 
+### Standalone
+
 ```bash
 git clone https://github.com/opensource-for-valkey/valkey-glide-php-docker.git
 cd valkey-glide-php-docker
 
 # Build and start all services
-docker compose up -d --build
+make up-standalone
 ```
+
+Connect with:
+
+```bash
+docker exec -it valkey valkey-cli -p 6379
+```
+
+### Cluster
+ 
+A 6-node cluster — 3 primaries and 3 replicas — across ports `7001–7006`. Hash slots are distributed evenly across the 3 primaries:
+ 
+| Node | Port | Role | Slots |
+|------|------|------|-------|
+| valkey-1 | 7001 | Primary | 0 – 5460 |
+| valkey-2 | 7002 | Primary | 5461 – 10922 |
+| valkey-3 | 7003 | Primary | 10923 – 16383 |
+ 
+```bash
+# Start (initializes cluster automatically on first run)
+make up-cluster
+ 
+# Stop and remove volumes
+make down-cluster
+```
+ 
+Connect with:
+```bash
+# The -c flag enables cluster-redirect mode
+docker exec -it valkey-1 valkey-cli -c -p 7001
+```
+
+## Data Persistence
+ 
+Persistence is enabled by default and controlled via the `PERSIST` environment variable.
+ 
+| `PERSIST` | Behaviour |
+|-----------|-----------|
+| `yes` (default) | RDB snapshots + AOF log written to `data/` |
+| `no` | In-memory only, nothing written to disk |
+ 
+```bash
+# With persistence (default)
+make up-cluster
+ 
+# Without persistence
+PERSIST=no make up-cluster
+PERSIST=no make up-standalone
+```
+ 
+When persistence is enabled, each node writes its data to a local `data/` subfolder:
+ 
+- `dump.rdb` — RDB snapshot
+- `appendonly.aof` — append-only log
+- `nodes.conf` — cluster topology (cluster mode only)
+Note that `nodes.conf` is always written regardless of `PERSIST` — Valkey needs it to track cluster membership and it contains no user data.
+ 
+Data survives `docker compose down`. To fully reset, remove the `data/` folder:
+ 
+```bash
+make down-cluster
+rm -rf data/
+```
+
+## Cluster Initialization
+ 
+`init-cluster.sh` runs automatically on the first `make up-cluster` and is skipped on subsequent runs. It detects whether the cluster has already been initialized by checking for `data/valkey-1/nodes.conf`.
+ 
+To force a re-initialization, remove the data folder and bring the cluster back up:
+ 
+```bash
+make down-cluster
+rm -rf data/
+make up-cluster
+```
+
 
 ## Testing
 
@@ -30,8 +109,6 @@ docker exec valkey-glide-php-docker-php-1 sh -c "cd /var/www/cli/ && composer re
 docker exec valkey-glide-php-docker-php-1 /var/www/cli/vendor/bin/phpunit /var/www/cli/ValkeyStandaloneTest.php
 ```
 
-**Note:** Cluster configuration is still work in progress.
-
 ## Project Structure
 
 | File | Description |
@@ -42,6 +119,7 @@ docker exec valkey-glide-php-docker-php-1 /var/www/cli/vendor/bin/phpunit /var/w
 | `nginx.dockerfile` | Nginx stable-alpine with PHP-FPM integration. |
 | `valkey.dockerfile` | Valkey 9 Alpine image. |
 | `docker-compose.yml` | Full stack: Nginx, PHP-FPM, MariaDB, standalone Valkey. |
+| `docker-compose.cluster.yml` | Full stack: Nginx, PHP-FPM, MariaDB, cluster Valkey. |
 
 ## Architecture
 
@@ -71,8 +149,27 @@ docker compose build --build-arg VALKEY_GLIDE_VERSION=1.0.0
 ## Stopping
 
 ```bash
-docker compose down
+make down-standalone
 ```
+
+## Network
+ 
+| Mode | Network name |
+|------|-------------|
+| Standalone | `valkey-net` |
+| Cluster | `valkey-cluster` |
+ 
+The networks are intentionally separate to avoid conflicts when running both modes on the same machine.
+ 
+## Makefile Reference
+ 
+| Command | Description |
+|---------|-------------|
+| `make up-standalone` | Build and start standalone instance |
+| `make down-standalone` | Stop standalone and remove volumes |
+| `make up-cluster` | Build and start cluster, init on first run |
+| `make down-cluster` | Stop cluster and remove volumes |
+ 
 
 ## Notes
 

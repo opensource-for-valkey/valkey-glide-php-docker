@@ -1,3 +1,6 @@
+networks:
+  valkey-net:
+    driver: bridge
 services:
   nginx:
     build:
@@ -41,11 +44,15 @@ services:
     build:
       context: .
       dockerfile: valkey.dockerfile
-    ports:
-      - 6379:6379
+      args:
+        MODE: standalone
+    container_name: valkey
+    environment:
+      PORT: 6379
+      PERSIST: ${PERSIST:-yes}
+    ports: ["6379:6379"]
+    volumes:
+      - ./data/valkey:/data
+    restart: unless-stopped
     networks:
       - valkey-net
-
-networks:
-  valkey-net:
-    driver: bridge
