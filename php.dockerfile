@@ -68,6 +68,9 @@ RUN curl -L https://github.com/valkey-io/valkey-glide-php/releases/download/v${V
 # Install with PECL
 RUN pecl install valkey_glide-${VALKEY_GLIDE_VERSION}.tgz
 
+# Install phpredis (ext-redis) so both drivers are available
+RUN pecl install redis && docker-php-ext-enable redis
+
 RUN pie --version
 
 CMD ["php-fpm", "-y", "/usr/local/etc/php-fpm.conf", "-R"]
