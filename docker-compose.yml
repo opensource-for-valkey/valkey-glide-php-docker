@@ -1,13 +1,18 @@
 services:
-  nginx:
+  # OpenResty (nginx + LuaJIT) is used as the web server. The stock nginx
+  # image is kept in nginx.dockerfile for reference; swap the dockerfile
+  # below to fall back to it.
+  openresty:
     build:
       context: .
-      dockerfile: nginx.dockerfile
+      dockerfile: openresty.dockerfile
     ports:
       - 80:80
+      - 8080:8080
     volumes:
       - ./src:/var/www/html
       - ./tests:/var/www/cli
+      - ./web:/var/www/web
     depends_on:
       - php
     networks:
@@ -20,6 +25,7 @@ services:
     volumes:
       - ./src:/var/www/html
       - ./tests:/var/www/cli
+      - ./web:/var/www/web
     depends_on:
       - valkey
       - valkey-replica

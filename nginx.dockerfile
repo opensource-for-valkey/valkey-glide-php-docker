@@ -3,9 +3,10 @@ FROM nginx:stable-alpine
 ENV NGINXUSER=laravel
 ENV NGINXGROUP=laravel
 
-RUN mkdir -p /var/www/html/
+RUN mkdir -p /var/www/html/ /var/www/web/
 
 ADD nginx/default.conf /etc/nginx/conf.d/default.conf
+ADD nginx/web.conf /etc/nginx/conf.d/web.conf
 
 RUN sed -i "s/user www-data/user ${NGINXUSER}/g" /etc/nginx/nginx.conf
 
