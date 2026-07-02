@@ -22,9 +22,10 @@ services:
       - ./tests:/var/www/cli
     depends_on:
       - valkey
+      - valkey-replica
     networks:
       - valkey-net
-  
+
   mysql:
     image: mariadb:10.6
     ports:
@@ -43,6 +44,18 @@ services:
       dockerfile: valkey.dockerfile
     ports:
       - 6379:6379
+    networks:
+      - valkey-net
+
+  valkey-replica:
+    build:
+      context: .
+      dockerfile: valkey.dockerfile
+    command: valkey-server --replicaof valkey 6379
+    ports:
+      - 6380:6379
+    depends_on:
+      - valkey
     networks:
       - valkey-net
 
