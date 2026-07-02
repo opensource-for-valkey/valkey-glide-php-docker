@@ -1,6 +1,8 @@
 # Docker Valkey-Glide PHP
 
-A Docker environment for developing with [valkey-glide-php](https://github.com/valkey-io/valkey-glide-php) — includes Nginx, PHP-FPM, and both standalone and cluster Valkey instances.
+A Docker environment for developing with [valkey-glide-php](https://github.com/valkey-io/valkey-glide-php) — includes OpenResty (nginx + LuaJIT), PHP-FPM, and both standalone and cluster Valkey instances.
+
+> The web server is [OpenResty](https://openresty.org/), configured from its own `openresty/` folder. The stock nginx image (`nginx.dockerfile` + `nginx/`) is kept for reference. To fall back to plain nginx, point the `openresty` service in `docker-compose.yml` at `nginx.dockerfile`.
 
 ## Prerequisites
 
@@ -16,7 +18,26 @@ cd valkey-glide-php-docker
 docker compose up -d --build
 ```
 
-## Testing
+## Scripts
+
+Interactive helper scripts live in `scripts/` and use [gum](https://github.com/charmbracelet/gum). They require `gum`, `httpie`, `jq`, and `docker` on the host.
+
+```bash
+./scripts/setup.sh      # build + start the stack, install PHPUnit
+./scripts/test.sh       # pick and run CLI + web-server tests
+./scripts/test.sh --all # run every suite without prompting (CI-friendly)
+./scripts/teardown.sh   # stop and remove the stack
+```
+
+`test.sh` runs three suites (choose any subset via gum; when stdin is not a TTY or `--all` is passed, all suites run automatically):
+
+| Suite | What it checks |
+|-------|----------------|
+| Standalone (CLI) | PHPUnit against the standalone primary. |
+| Replica (CLI) | PHPUnit — writes to primary, reads back from the replica via a `PREFER_REPLICA` client. |
+| Web server (HTTPie) | `GET http://localhost:8080/`, validates the JSON with HTTPie + `jq`. |
+
+## Testing (manual)
 
 Run CLI demos:
 ```bash
@@ -28,6 +49,14 @@ docker exec valkey-glide-php-docker-php-1 sh -c "cd /var/www/cli/ && composer re
 
 # Test standalone Valkey connection
 docker exec valkey-glide-php-docker-php-1 /var/www/cli/vendor/bin/phpunit /var/www/cli/ValkeyStandaloneTest.php
+
+# Test primary/replica replication
+docker exec valkey-glide-php-docker-php-1 /var/www/cli/vendor/bin/phpunit /var/www/cli/ValkeyReplicaTest.php
+```
+
+Test the web endpoint:
+```bash
+http GET http://localhost:8080/
 ```
 
 **Note:** Cluster configuration is still work in progress.
@@ -38,10 +67,20 @@ docker exec valkey-glide-php-docker-php-1 /var/www/cli/vendor/bin/phpunit /var/w
 |------|-------------|
 | `tests/ValkeyTestBase.php` | Abstract PHPUnit test class with all 18 test methods. |
 | `tests/ValkeyStandaloneTest.php` | Standalone test implementation (extends ValkeyTestBase). |
+| `tests/ValkeyReplicaTest.php` | Replication test — writes to primary, reads from replica. |
+| `web/index.php` | JSON endpoint: writes to primary, reads back via a `PREFER_REPLICA` client. |
+| `scripts/setup.sh` | gum-driven build + start + PHPUnit install. |
+| `scripts/test.sh` | gum-driven CLI + web test runner (HTTPie + jq validation). |
+| `scripts/teardown.sh` | gum-driven stop + cleanup. |
+| `openresty/default.conf` | OpenResty vhost on `:80` (Laravel public root). |
+| `openresty/web.conf` | OpenResty vhost on `:8080` serving `web/`. |
+| `nginx/default.conf` | Stock nginx vhost on `:80` — kept for reference. |
+| `nginx/web.conf` | Stock nginx vhost on `:8080` — kept for reference. |
 | `php.dockerfile` | PHP 8.4 FPM with Rust toolchain and valkey-glide compiled from source. |
-| `nginx.dockerfile` | Nginx stable-alpine with PHP-FPM integration. |
+| `openresty.dockerfile` | OpenResty (nginx + LuaJIT) — the web server in use. |
+| `nginx.dockerfile` | Stock Nginx stable-alpine — kept for reference. |
 | `valkey.dockerfile` | Valkey 9 Alpine image. |
-| `docker-compose.yml` | Full stack: Nginx, PHP-FPM, MariaDB, standalone Valkey. |
+| `docker-compose.yml` | Full stack: OpenResty, PHP-FPM, MariaDB, standalone Valkey + read-only replica. |
 
 ## Architecture
 
