@@ -32,15 +32,19 @@ services:
     networks:
       - valkey-net
 
-  mysql:
+  mariadb:
     image: mariadb:10.6
     ports:
       - 3306:3306
     environment:
-      MYSQL_ROOT_PASSWORD: valkey_for_laravel_secret
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${MARIADB_DATABASE}
+      MARIADB_USER: ${MARIADB_USER}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
     volumes:
-      - ./mysql:/var/lib/mysql
-      - ./databases-backup.sql:/docker-entrypoint-initdb.d/databases-backup.sql
+      - ./mariadb:/var/lib/mysql
+      - ./my.cnf:/etc/mysql/conf.d/my.cnf:ro
+      - ./databases-mariadb.sql:/docker-entrypoint-initdb.d/databases-mariadb.sql
     networks:
       - valkey-net
 
