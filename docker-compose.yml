@@ -48,6 +48,22 @@ services:
     networks:
       - valkey-net
 
+  postgres:
+    image: postgres:18-alpine
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      # Postgres 18+ expects the mount at /var/lib/postgresql (data lives in
+      # a major-version subdirectory). See docker-library/postgres#1259.
+      - ./postgres:/var/lib/postgresql
+      - ./databases-postgres.sql:/docker-entrypoint-initdb.d/databases-postgres.sql
+    networks:
+      - valkey-net
+
   valkey:
     build:
       context: .

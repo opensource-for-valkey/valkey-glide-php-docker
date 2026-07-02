@@ -47,6 +47,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
+    libpq-dev \
     protobuf-compiler \
     protobuf-c-compiler \
     libprotobuf-c-dev \
@@ -64,11 +65,11 @@ RUN cargo install cbindgen
 
 # --- PHP extensions ---------------------------------------------------
 # Laravel's required extensions (ctype, mbstring, openssl, tokenizer, xml,
-# ...) ship with the base image. These add database access plus the
-# commonly-needed extras: bcmath, zip (Composer), pcntl (queue workers),
-# intl (localization), gd + exif (image handling).
+# ...) ship with the base image. These add database access (MySQL/MariaDB
+# + PostgreSQL) plus the commonly-needed extras: bcmath, zip (Composer),
+# pcntl (queue workers), intl (localization), gd + exif (image handling).
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
-    docker-php-ext-install pdo pdo_mysql bcmath zip pcntl intl gd exif
+    docker-php-ext-install pdo pdo_mysql pdo_pgsql bcmath zip pcntl intl gd exif
 
 # --- PHP tooling: Composer & PIE --------------------------------------
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
