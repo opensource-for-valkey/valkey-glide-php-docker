@@ -2,8 +2,8 @@ FROM valkey/valkey:9-alpine
 
 ARG VALKEY_PORT=7000
 
-ENV VALKEYUSER=laravel
-ENV VALKEYGROUP=laravel
+ENV VALKEYUSER=valkeyglide
+ENV VALKEYGROUP=valkeyglide
 
 RUN addgroup -g 1000 ${VALKEYGROUP} && \
     adduser -u 1000 -G ${VALKEYGROUP} -s /bin/sh -D ${VALKEYUSER}

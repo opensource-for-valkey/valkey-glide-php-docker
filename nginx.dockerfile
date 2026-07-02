@@ -1,7 +1,7 @@
 FROM nginx:stable-alpine
 
-ENV NGINXUSER=laravel
-ENV NGINXGROUP=laravel
+ENV NGINXUSER=valkeyglide
+ENV NGINXGROUP=valkeyglide
 
 RUN mkdir -p /var/www/html/ /var/www/web/
 
