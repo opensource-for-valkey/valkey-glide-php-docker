@@ -46,6 +46,15 @@ gum spin --spinner dot --title "Waiting for primary..." -- \
 gum spin --spinner dot --title "Waiting for replica link..." -- \
     bash -c 'until docker compose exec -T valkey-replica valkey-cli info replication 2>/dev/null | grep -q "master_link_status:up"; do sleep 1; done'
 
+# The valkey-cluster-init one-shot forms the 12-node AZ-aware cluster then
+# exits 0. Wait for it to finish, then confirm the cluster is healthy.
+gum spin --spinner dot --title "Forming AZ-aware Valkey cluster (12 nodes)..." -- \
+    bash -c 'docker compose up -d valkey-cluster-init >/dev/null 2>&1;
+             until [ "$(docker inspect -f "{{.State.Status}}" valkey-glide-php-docker-valkey-cluster-init-1 2>/dev/null)" = "exited" ]; do sleep 1; done'
+
+gum spin --spinner dot --title "Waiting for cluster_state:ok..." -- \
+    bash -c 'until docker compose exec -T vk-s1-1a-p valkey-cli cluster info 2>/dev/null | grep -q "cluster_state:ok"; do sleep 1; done'
+
 gum spin --spinner dot --title "Installing PHPUnit in PHP container..." -- \
     docker exec "$PHP_CONTAINER" sh -c "cd /var/www/cli/ && composer install --no-interaction || composer require --dev phpunit/phpunit --no-interaction"
 
@@ -58,6 +67,7 @@ echo
 gum format -- "- Web endpoint: **http://localhost:8080**"
 gum format -- "- Primary:      **localhost:6379**"
 gum format -- "- Replica:      **localhost:6380** (read-only)"
+gum format -- "- Cluster:      **12 nodes** (3 shards x 1 primary + 3 AZ replicas, internal-only)"
 echo
 
 # --- Connection hints -------------------------------------------------
@@ -85,6 +95,11 @@ gum format <<EOF
 **Valkey (replica, read-only)** — port 6380:
   valkey-cli -h 127.0.0.1 -p 6380
   docker compose exec valkey-replica valkey-cli
+
+**Valkey cluster** — internal to the compose network (no host ports).
+Inspect via any node; -c follows MOVED redirects:
+  docker compose exec vk-s1-1a-p valkey-cli -c cluster nodes
+  docker compose exec vk-s1-1a-p valkey-cli -c cluster info
 
 **Memcached** — no REPL; use libmemcached-tools or nc:
   memcstat --servers=127.0.0.1:11211

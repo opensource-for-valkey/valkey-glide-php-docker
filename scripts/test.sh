@@ -49,7 +49,7 @@ else
 fi
 
 # --- Pick which suites to run --------------------------------------------
-ALL_SUITES=$'Standalone (CLI)\nReplica (CLI)\nMariaDB (CLI)\nPostgreSQL (CLI)\nSQLite (CLI)\nMemcached (CLI)\nWeb server (HTTPie)'
+ALL_SUITES=$'Standalone (CLI)\nReplica (CLI)\nCluster (CLI)\nMariaDB (CLI)\nPostgreSQL (CLI)\nSQLite (CLI)\nMemcached (CLI)\nWeb server (HTTPie)'
 
 # Run everything by default. Only prompt when --pick is passed on a TTY.
 RUN_ALL=1
@@ -62,9 +62,10 @@ if [ "$RUN_ALL" -eq 1 ]; then
     gum style --foreground 244 "Running all suites (non-interactive)."
 else
     CHOICES=$(gum choose --no-limit \
-        --selected="Standalone (CLI),Replica (CLI),MariaDB (CLI),PostgreSQL (CLI),SQLite (CLI),Memcached (CLI),Web server (HTTPie)" \
+        --selected="Standalone (CLI),Replica (CLI),Cluster (CLI),MariaDB (CLI),PostgreSQL (CLI),SQLite (CLI),Memcached (CLI),Web server (HTTPie)" \
         "Standalone (CLI)" \
         "Replica (CLI)" \
+        "Cluster (CLI)" \
         "MariaDB (CLI)" \
         "PostgreSQL (CLI)" \
         "SQLite (CLI)" \
@@ -82,6 +83,11 @@ fi
 if grep -q "Replica (CLI)" <<<"$CHOICES"; then
     gum style --foreground 39 "▶ PHPUnit: replica (read from replica)"
     run_phpunit "ValkeyReplicaTest.php" || FAILED=1
+fi
+
+if grep -q "Cluster (CLI)" <<<"$CHOICES"; then
+    gum style --foreground 39 "▶ PHPUnit: cluster (AZ-affinity, 3 shards x 4 nodes)"
+    run_phpunit "ValkeyClusterTest.php" || FAILED=1
 fi
 
 if grep -q "MariaDB (CLI)" <<<"$CHOICES"; then

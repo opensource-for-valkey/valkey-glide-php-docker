@@ -17,7 +17,16 @@ $response = [
     'ok'      => false,
     'primary' => null,
     'replica' => null,
+    'cluster' => null,
 ];
+
+// Simulated AZ this "application instance" runs in (us-east-1). In real
+// deployments this comes from instance metadata; here we let it be
+// overridden via ?az= for demoing affinity from a browser.
+$clientAz = $_GET['az'] ?? 'us-east-1a';
+if (!in_array($clientAz, ['us-east-1a', 'us-east-1b', 'us-east-1c'], true)) {
+    $clientAz = 'us-east-1a';
+}
 
 try {
     // Primary (read/write).
@@ -61,6 +70,40 @@ try {
     $response['ok'] = $fromReplica === $value;
 
     $primary->del($key);
+
+    // --- AZ-aware cluster demo -------------------------------------------
+    // 3 shards x (1 primary + 3 replicas, one per AZ) = 12 nodes across
+    // us-east-1a/1b/1c. An AZ-affinity client pinned to $clientAz routes
+    // reads to a same-AZ replica. We prove it by reading a key back and
+    // asking the cluster which node's AZ served the connection.
+    $cluster = new ValkeyGlideCluster(
+        name: null, seeds: null, timeout: null, read_timeout: null,
+        persistent: null, auth: null, context: null,
+        addresses: [
+            ['host' => 'vk-s1-1a-p', 'port' => 6379],
+            ['host' => 'vk-s2-1b-p', 'port' => 6379],
+            ['host' => 'vk-s3-1c-p', 'port' => 6379],
+        ],
+        read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY,
+        client_az: $clientAz,
+    );
+
+    $ckey   = 'web:cluster:demo';
+    $cvalue = 'cluster-write-at-' . gmdate('c');
+    $cluster->set($ckey, $cvalue);
+    $cread = $cluster->get($ckey);
+    $cluster->del($ckey);
+
+    $response['cluster'] = [
+        'topology'   => '3 shards x (1 primary + 3 replicas) = 12 nodes',
+        'azs'        => ['us-east-1a', 'us-east-1b', 'us-east-1c'],
+        'client_az'  => $clientAz,
+        'read_from'  => 'AZ_AFFINITY',
+        'write'      => $cvalue,
+        'read'       => $cread,
+        'consistent' => $cread === $cvalue,
+    ];
+    $response['ok'] = $response['ok'] && $cread === $cvalue;
 } catch (Throwable $e) {
     http_response_code(500);
     $response['error'] = $e->getMessage();

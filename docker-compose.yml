@@ -96,6 +96,97 @@ services:
     networks:
       - valkey-net
 
+  # --- Valkey cluster (AZ-aware, us-east-1) ------------------------------
+  # 3 shards x (1 primary + 3 replicas) = 12 nodes, simulating ElastiCache/
+  # MemoryDB across 3 AZs. Every AZ holds a node for every shard, so an
+  # AZ-affinity client (READ_FROM_AZ_AFFINITY + client_az) always reads
+  # from its own AZ. Node naming: vk-s<shard>-<az>-<p|r>.
+  #
+  #   Shard 1  primary=1a  replicas 1a,1b,1c
+  #   Shard 2  primary=1b  replicas 1a,1b,1c
+  #   Shard 3  primary=1c  replicas 1a,1b,1c
+  #
+  # Topology is formed by the one-shot valkey-cluster-init container below.
+  # Each node advertises its AZ via --availability-zone (appended to the
+  # image CMD), which is how GLIDE decides which replica is "local".
+
+  # Shard 1 — primary in us-east-1a
+  vk-s1-1a-p:
+    build: &vk-cluster-build { context: ., dockerfile: valkey-cluster.dockerfile }
+    environment: { VALKEY_AZ: us-east-1a }
+    networks: [valkey-net]
+  vk-s1-1a-r:
+    build: *vk-cluster-build
+    environment: { VALKEY_AZ: us-east-1a }
+    networks: [valkey-net]
+  vk-s1-1b-r:
+    build: *vk-cluster-build
+    environment: { VALKEY_AZ: us-east-1b }
+    networks: [valkey-net]
+  vk-s1-1c-r:
+    build: *vk-cluster-build
+    environment: { VALKEY_AZ: us-east-1c }
+    networks: [valkey-net]
+
+  # Shard 2 — primary in us-east-1b
+  vk-s2-1b-p:
+    build: *vk-cluster-build
+    environment: { VALKEY_AZ: us-east-1b }
+    networks: [valkey-net]
+  vk-s2-1a-r:
+    build: *vk-cluster-build
+    environment: { VALKEY_AZ: us-east-1a }
+    networks: [valkey-net]
+  vk-s2-1b-r:
+    build: *vk-cluster-build
+    environment: { VALKEY_AZ: us-east-1b }
+    networks: [valkey-net]
+  vk-s2-1c-r:
+    build: *vk-cluster-build
+    environment: { VALKEY_AZ: us-east-1c }
+    networks: [valkey-net]
+
+  # Shard 3 — primary in us-east-1c
+  vk-s3-1c-p:
+    build: *vk-cluster-build
+    environment: { VALKEY_AZ: us-east-1c }
+    networks: [valkey-net]
+  vk-s3-1a-r:
+    build: *vk-cluster-build
+    environment: { VALKEY_AZ: us-east-1a }
+    networks: [valkey-net]
+  vk-s3-1b-r:
+    build: *vk-cluster-build
+    environment: { VALKEY_AZ: us-east-1b }
+    networks: [valkey-net]
+  vk-s3-1c-r:
+    build: *vk-cluster-build
+    environment: { VALKEY_AZ: us-east-1c }
+    networks: [valkey-net]
+
+  # One-shot: waits for all 12 nodes, forms the cluster with explicit
+  # replica->primary+AZ placement, then exits.
+  valkey-cluster-init:
+    build: *vk-cluster-build
+    entrypoint: ["/bin/sh", "/cluster-init.sh"]
+    volumes:
+      - ./scripts/cluster-init.sh:/cluster-init.sh:ro
+    restart: "no"
+    depends_on:
+      - vk-s1-1a-p
+      - vk-s1-1a-r
+      - vk-s1-1b-r
+      - vk-s1-1c-r
+      - vk-s2-1b-p
+      - vk-s2-1a-r
+      - vk-s2-1b-r
+      - vk-s2-1c-r
+      - vk-s3-1c-p
+      - vk-s3-1a-r
+      - vk-s3-1b-r
+      - vk-s3-1c-r
+    networks: [valkey-net]
+
 networks:
   valkey-net:
     driver: bridge
