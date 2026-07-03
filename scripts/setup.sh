@@ -106,6 +106,19 @@ Inspect via any node, or the valkey-tools jump box; -c follows redirects:
   docker compose exec valkey-tools valkey-cli -c -h vk-s1-1a-p cluster info
   docker compose exec valkey-tools valkey-cli -c -h vk-s2-1b-p get somekey
 
+**Valkey (TLS standalone)** — \`tls\` profile only; needs the CA cert.
+Published on host 6390 (replica 6391). From the host, point --cacert at
+./certs/ca.crt (run ./certs/gen-test-certs.sh first if missing):
+  valkey-cli --tls --cacert certs/ca.crt -h 127.0.0.1 -p 6390
+  valkey-cli --tls --cacert certs/ca.crt -h 127.0.0.1 -p 6391   # replica
+  docker compose exec valkey-tls valkey-cli --tls --cacert /etc/certs/ca.crt
+
+**Valkey (TLS cluster)** — \`tls\` profile, internal-only (no host ports).
+6 nodes (3 shards x 1 primary + 1 cross-AZ replica); cluster bus is TLS too.
+Address nodes by hostname from inside valkey-net; -c follows redirects:
+  docker compose exec vk-tls-s1-1a-p valkey-cli --tls --cacert /etc/certs/ca.crt -c cluster nodes
+  docker compose exec vk-tls-s1-1a-p valkey-cli --tls --cacert /etc/certs/ca.crt -c -h vk-tls-s2-1b-p cluster info
+
 **Memcached** — no REPL; use libmemcached-tools or nc:
   memcstat --servers=127.0.0.1:11211
   printf 'stats\r\nquit\r\n' | nc 127.0.0.1 11211

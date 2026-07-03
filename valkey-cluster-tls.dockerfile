@@ -6,6 +6,12 @@ FROM valkey/valkey:9-alpine
 #   --tls-replication yes  encrypt primary<->replica replication
 #   --port 0               disable the plaintext port (TLS only)
 #
+# NOTE: uses valkey.crt (the unrestricted cert) rather than server.crt. The
+# cluster bus is MUTUAL TLS — each node dials its peers as a *client*, so the
+# cert must be valid for clientAuth too. server.crt is nsCertType=server only,
+# which peers reject ("Clusterbus handshake timeout"). valkey.crt has no
+# usage restriction, so it works as both server and client.
+#
 # Certificates are mounted at /etc/certs at runtime (see the vk-tls-* services
 # in docker-compose.yml). Generate them with `./certs/gen-test-certs.sh`.
 #
@@ -24,8 +30,8 @@ RUN printf '%s\n' \
     'exec valkey-server \' \
     '  --tls-port 6379 \' \
     '  --port 0 \' \
-    '  --tls-cert-file /etc/certs/server.crt \' \
-    '  --tls-key-file /etc/certs/server.key \' \
+    '  --tls-cert-file /etc/certs/valkey.crt \' \
+    '  --tls-key-file /etc/certs/valkey.key \' \
     '  --tls-ca-cert-file /etc/certs/ca.crt \' \
     '  --tls-auth-clients no \' \
     '  --tls-cluster yes \' \

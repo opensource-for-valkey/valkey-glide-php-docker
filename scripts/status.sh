@@ -34,11 +34,23 @@ replica_link=$(docker compose exec -T valkey-replica valkey-cli info replication
 
 echo
 
-# --- Cluster topology -----------------------------------------------------
-cluster_state=$(docker compose exec -T vk-s1-1a-p valkey-cli cluster info 2>/dev/null | grep cluster_state | tr -d '\r' | cut -d: -f2)
-gum style --bold --foreground 39 "Cluster topology (state: ${cluster_state:-unknown}):"
+# --- Standalone Valkey over TLS (tls profile) -----------------------------
+tls_flags="--tls --cacert /etc/certs/ca.crt"
+tls_primary_ok=$(docker compose exec -T valkey-tls valkey-cli $tls_flags ping 2>/dev/null | tr -d '\r')
+if [ -n "$tls_primary_ok" ]; then
+    tls_replica_link=$(docker compose exec -T valkey-tls-replica valkey-cli $tls_flags info replication 2>/dev/null | grep master_link_status | tr -d '\r' | cut -d: -f2)
+    gum style --bold --foreground 39 "Standalone Valkey (TLS):"
+    {
+        printf "NODE\tROLE\tSTATUS\n"
+        printf "valkey-tls\tprimary\t%s\n" "${tls_primary_ok:-down}"
+        printf "valkey-tls-replica\treplica\tlink ${tls_replica_link:-down}\n"
+    } | gum table --print --separator $'\t' --border.foreground 212
+    echo
+fi
 
-# Build IP→service-name map (cluster nodes report IPs, not hostnames).
+# --- Cluster topology -----------------------------------------------------
+
+# Build IP→service-name map once (cluster nodes report IPs, not hostnames).
 ip_map=$(docker network inspect valkey-glide-php-docker_valkey-net \
     -f '{{range .Containers}}{{.IPv4Address}} {{.Name}}{{"\n"}}{{end}}' 2>/dev/null | grep vk-)
 
@@ -51,34 +63,53 @@ resolve_host() {
     echo "${match:-$ip}"
 }
 
-# Capture cluster nodes output once (avoid stdin issues in loops).
-cluster_nodes=$(docker compose exec -T vk-s1-1a-p valkey-cli cluster nodes 2>/dev/null)
+# render_topology <title> <seed-node> <cli-flags>
+# Prints a bold title + gum table for the cluster reachable via <seed-node>.
+# <cli-flags> is passed to every valkey-cli call (empty for plaintext, the
+# TLS flags for the encrypted cluster). No-op if the seed node isn't running.
+render_topology() {
+    local title="$1" seed="$2" flags="$3"
 
-# Build id→slots map from primary nodes (replicas inherit their primary's slots).
-primary_slots=""
-while IFS=' ' read -r nid endpoint flags _master _ping _pong _epoch _link slots; do
-    if echo "$flags" | grep -q "master"; then
-        primary_slots="${primary_slots}${nid} ${slots}"$'\n'
-    fi
-done <<< "$cluster_nodes"
+    local state
+    state=$(docker compose exec -T "$seed" valkey-cli $flags cluster info 2>/dev/null | grep cluster_state | tr -d '\r' | cut -d: -f2)
+    [ -z "$state" ] && return 0   # seed not up (e.g. tls profile not started)
 
-lookup_slots() {
-    echo "$primary_slots" | grep "^$1 " | cut -d' ' -f2-
+    gum style --bold --foreground 39 "${title} (state: ${state:-unknown}):"
+
+    # Capture cluster nodes output once (avoid stdin issues in loops).
+    local cluster_nodes
+    cluster_nodes=$(docker compose exec -T "$seed" valkey-cli $flags cluster nodes 2>/dev/null)
+
+    # id→slots map from primaries (replicas inherit their primary's slots).
+    local primary_slots=""
+    local nid endpoint flg master slots
+    while IFS=' ' read -r nid endpoint flg master _ping _pong _epoch _link slots; do
+        if echo "$flg" | grep -q "master"; then
+            primary_slots="${primary_slots}${nid} ${slots}"$'\n'
+        fi
+    done <<< "$cluster_nodes"
+
+    {
+        printf "NODE\tROLE\tAZ\tSLOTS\n"
+        while IFS=' ' read -r _id endpoint flg master _ping _pong _epoch _link slots; do
+            local ip host role slot_range az
+            ip="${endpoint%%:*}"
+            host=$(resolve_host "$ip")
+            if echo "$flg" | grep -q "master"; then
+                role="primary"
+                slot_range="$slots"
+            else
+                role="replica"
+                slot_range=$(echo "$primary_slots" | grep "^$master " | cut -d' ' -f2-)
+            fi
+            az=$(docker compose exec -T "$host" valkey-cli $flags config get availability-zone </dev/null 2>/dev/null | tail -1 | tr -d '\r')
+            printf "%s\t%s\t%s\t%s\n" "$host" "$role" "$az" "$slot_range"
+        done <<< "$cluster_nodes" | sort -t$'\t' -k2,2 -k3,3
+    } | gum table --print --separator $'\t' --border.foreground 212
 }
 
-{
-    printf "NODE\tROLE\tAZ\tSLOTS\n"
-    while IFS=' ' read -r _id endpoint flags master _ping _pong _epoch _link slots; do
-        ip="${endpoint%%:*}"
-        host=$(resolve_host "$ip")
-        if echo "$flags" | grep -q "master"; then
-            role="primary"
-            slot_range="$slots"
-        else
-            role="replica"
-            slot_range=$(lookup_slots "$master")
-        fi
-        az=$(docker compose exec -T "$host" valkey-cli config get availability-zone </dev/null 2>/dev/null | tail -1 | tr -d '\r')
-        printf "%s\t%s\t%s\t%s\n" "$host" "$role" "$az" "$slot_range"
-    done <<< "$cluster_nodes" | sort -t$'\t' -k2,2 -k3,3
-} | gum table --print --separator $'\t' --border.foreground 212
+render_topology "Cluster topology" vk-s1-1a-p ""
+
+echo
+
+render_topology "TLS cluster topology" vk-tls-s1-1a-p "--tls --cacert /etc/certs/ca.crt"

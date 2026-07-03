@@ -49,7 +49,7 @@ else
 fi
 
 # --- Pick which suites to run --------------------------------------------
-ALL_SUITES=$'Standalone (CLI)\nReplica (CLI)\nCluster (CLI)\nGLIDE features (CLI)\nMariaDB (CLI)\nPostgreSQL (CLI)\nSQLite (CLI)\nMemcached (CLI)\nWeb server (HTTPie)'
+ALL_SUITES=$'Standalone (CLI)\nReplica (CLI)\nCluster (CLI)\nGLIDE features (CLI)\nTLS standalone (CLI)\nTLS cluster (CLI)\nMariaDB (CLI)\nPostgreSQL (CLI)\nSQLite (CLI)\nMemcached (CLI)\nWeb server (HTTPie)'
 
 # Run everything by default. Only prompt when --pick is passed on a TTY.
 RUN_ALL=1
@@ -62,11 +62,13 @@ if [ "$RUN_ALL" -eq 1 ]; then
     gum style --foreground 244 "Running all suites (non-interactive)."
 else
     CHOICES=$(gum choose --no-limit \
-        --selected="Standalone (CLI),Replica (CLI),Cluster (CLI),GLIDE features (CLI),MariaDB (CLI),PostgreSQL (CLI),SQLite (CLI),Memcached (CLI),Web server (HTTPie)" \
+        --selected="Standalone (CLI),Replica (CLI),Cluster (CLI),GLIDE features (CLI),TLS standalone (CLI),TLS cluster (CLI),MariaDB (CLI),PostgreSQL (CLI),SQLite (CLI),Memcached (CLI),Web server (HTTPie)" \
         "Standalone (CLI)" \
         "Replica (CLI)" \
         "Cluster (CLI)" \
         "GLIDE features (CLI)" \
+        "TLS standalone (CLI)" \
+        "TLS cluster (CLI)" \
         "MariaDB (CLI)" \
         "PostgreSQL (CLI)" \
         "SQLite (CLI)" \
@@ -121,6 +123,42 @@ if grep -q "GLIDE features (CLI)" <<<"$CHOICES"; then
     else
         record "GLIDE features" "FAIL"
         FAILED=1
+    fi
+fi
+
+# TLS suites need the `tls` profile running. Detect once: if valkey-tls
+# answers a TLS ping, the profile is up; otherwise skip (recorded as SKIP).
+tls_up() {
+    docker compose exec -T valkey-tls valkey-cli --tls --cacert /etc/certs/ca.crt ping >/dev/null 2>&1
+}
+
+if grep -q "TLS standalone (CLI)" <<<"$CHOICES"; then
+    if tls_up; then
+        gum style --foreground 39 "▶ PHPUnit: TLS standalone (encrypted primary + replica)"
+        if run_phpunit "ValkeyGlideTlsTest.php"; then
+            record "TLS standalone" "PASS"
+        else
+            record "TLS standalone" "FAIL"
+            FAILED=1
+        fi
+    else
+        gum style --foreground 214 "▶ TLS standalone — skipped (tls profile not running)"
+        record "TLS standalone" "SKIP"
+    fi
+fi
+
+if grep -q "TLS cluster (CLI)" <<<"$CHOICES"; then
+    if tls_up; then
+        gum style --foreground 39 "▶ PHPUnit: TLS cluster (AZ-aware, encrypted bus, 3 shards)"
+        if run_phpunit "ValkeyGlideClusterTlsTest.php"; then
+            record "TLS cluster" "PASS"
+        else
+            record "TLS cluster" "FAIL"
+            FAILED=1
+        fi
+    else
+        gum style --foreground 214 "▶ TLS cluster — skipped (tls profile not running)"
+        record "TLS cluster" "SKIP"
     fi
 fi
 
@@ -200,17 +238,18 @@ gum style --bold --foreground 39 "Results:"
 
 GREEN=$'\033[32m'
 RED=$'\033[31m'
+YELLOW=$'\033[33m'
 RESET=$'\033[0m'
 
 {
     printf "SUITE\tSTATUS\n"
     printf "%b" "$RESULTS" | while IFS=$'\t' read -r suite status; do
         [ -z "$suite" ] && continue
-        if [ "$status" = "PASS" ]; then
-            printf "%s\t${GREEN}%s${RESET}\n" "$suite" "$status"
-        else
-            printf "%s\t${RED}%s${RESET}\n" "$suite" "$status"
-        fi
+        case "$status" in
+            PASS) printf "%s\t${GREEN}%s${RESET}\n" "$suite" "$status" ;;
+            SKIP) printf "%s\t${YELLOW}%s${RESET}\n" "$suite" "$status" ;;
+            *)    printf "%s\t${RED}%s${RESET}\n" "$suite" "$status" ;;
+        esac
     done
 } | gum table --print --separator $'\t' --border.foreground 212
 
