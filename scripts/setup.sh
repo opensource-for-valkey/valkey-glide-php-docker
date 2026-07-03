@@ -97,9 +97,10 @@ gum format <<EOF
   docker compose exec valkey-replica valkey-cli
 
 **Valkey cluster** — internal to the compose network (no host ports).
-Inspect via any node; -c follows MOVED redirects:
+Inspect via any node, or the valkey-tools jump box; -c follows redirects:
   docker compose exec vk-s1-1a-p valkey-cli -c cluster nodes
-  docker compose exec vk-s1-1a-p valkey-cli -c cluster info
+  docker compose exec valkey-tools valkey-cli -c -h vk-s1-1a-p cluster info
+  docker compose exec valkey-tools valkey-cli -c -h vk-s2-1b-p get somekey
 
 **Memcached** — no REPL; use libmemcached-tools or nc:
   memcstat --servers=127.0.0.1:11211

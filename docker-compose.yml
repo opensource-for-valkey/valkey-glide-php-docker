@@ -187,6 +187,20 @@ services:
       - vk-s3-1c-r
     networks: [valkey-net]
 
+  # Jump box: an idle Valkey container on valkey-net (no data role) whose
+  # only job is to give you valkey-cli inside the network, so you can reach
+  # the cluster nodes by hostname (they publish no host ports). Example:
+  #   docker compose exec valkey-tools valkey-cli -c -h vk-s1-1a-p cluster nodes
+  # The base entrypoint passes a non-server command straight through, so
+  # `tail -f /dev/null` just keeps it running.
+  valkey-tools:
+    image: valkey/valkey:9-alpine
+    command: ["tail", "-f", "/dev/null"]
+    restart: unless-stopped
+    depends_on:
+      - vk-s1-1a-p
+    networks: [valkey-net]
+
 networks:
   valkey-net:
     driver: bridge

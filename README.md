@@ -93,6 +93,17 @@ The web endpoint demonstrates affinity — pin the AZ with `?az=`:
 http GET http://localhost:8080/ az==us-east-1c | jq .cluster
 ```
 
+The cluster nodes publish no host ports, so connect to them from *inside*
+the network. The `valkey-tools` service is an idle jump box on `valkey-net`
+that exists just to give you `valkey-cli` there (`-c` follows MOVED/ASK
+redirects across shards):
+
+```bash
+docker compose exec valkey-tools valkey-cli -c -h vk-s1-1a-p cluster nodes
+docker compose exec valkey-tools valkey-cli -c -h vk-s2-1b-p set foo bar
+docker compose exec valkey-tools valkey-cli -c -h vk-s3-1c-p get foo
+```
+
 ## Project Structure
 
 | File | Description |
@@ -120,6 +131,7 @@ http GET http://localhost:8080/ az==us-east-1c | jq .cluster
 | `valkey.dockerfile` | Valkey 9 Alpine image (standalone primary + replica). |
 | `valkey-cluster.dockerfile` | Valkey 9 cluster node; advertises its AZ via `--availability-zone` (`VALKEY_AZ`). |
 | `scripts/cluster-init.sh` | One-shot: forms the 12-node cluster with explicit replica→primary+AZ placement. |
+| `valkey-tools` (compose service) | Idle Valkey jump box on `valkey-net`; gives you `valkey-cli` inside the network to reach the port-less cluster nodes. |
 | `docker-compose.yml` | Full stack: OpenResty, PHP-FPM, MariaDB, PostgreSQL, Memcached, standalone Valkey + replica, and the 12-node AZ-aware cluster. |
 
 ## Architecture
@@ -159,6 +171,6 @@ docker compose down
 
 - The cluster uses 3 shards, each with 1 primary + 3 replicas (one per AZ) = 12 nodes, simulating a Multi-AZ ElastiCache/MemoryDB deployment in `us-east-1`.
 - `valkey-cluster-init` is a one-shot container that creates the cluster topology and exits.
-- Cluster nodes are internal to the compose network (no host port mappings); inspect them via `docker compose exec vk-s1-1a-p valkey-cli -c ...`.
+- Cluster nodes are internal to the compose network (no host port mappings); inspect them via `docker compose exec vk-s1-1a-p valkey-cli -c ...` or the `valkey-tools` jump box.
 - Alpine Linux is **not** supported by valkey-glide — the Dockerfile uses Debian-based PHP.
 - Requires PHP 8.1+ (8.4 used here).
