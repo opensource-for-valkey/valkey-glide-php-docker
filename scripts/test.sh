@@ -2,9 +2,10 @@
 #
 # test.sh — run the Valkey GLIDE test suites with gum.
 #
-# 1. PHP CLI tests (PHPUnit) for standalone + replica connections.
-# 2. Web-server test: hits the nginx/PHP-FPM JSON endpoint and validates
-#    the response with HTTPie.
+# 1. PHP CLI tests (PHPUnit): Valkey standalone + replica, and PHP
+#    connectivity to MariaDB, PostgreSQL, SQLite, and Memcached.
+# 2. Web-server test: hits the OpenResty/PHP-FPM JSON endpoint and
+#    validates the response with HTTPie + jq.
 #
 # Usage:
 #   ./scripts/test.sh          # interactive suite picker (gum choose)
@@ -105,17 +106,22 @@ fi
 if grep -q "Web server (HTTPie)" <<<"$CHOICES"; then
     gum style --foreground 39 "▶ Web server: GET $WEB_URL"
 
-    # Wait for the endpoint to answer.
-    gum spin --spinner dot --title "Waiting for web endpoint..." -- \
-        bash -c "until http --check-status --timeout=3 GET $WEB_URL >/dev/null 2>&1; do sleep 1; done"
+    # Wait for the endpoint to answer, but give up after ~30s so a stopped
+    # web server fails the suite instead of hanging forever.
+    if gum spin --spinner dot --title "Waiting for web endpoint..." -- \
+        bash -c "for i in \$(seq 1 30); do http --check-status --timeout=3 GET $WEB_URL >/dev/null 2>&1 && exit 0; sleep 1; done; exit 1"
+    then
+        # Fetch the JSON body with HTTPie and pretty-print it.
+        BODY=$(http --body --print=b GET "$WEB_URL")
+        echo "$BODY" | gum format --type code --language json || echo "$BODY"
 
-    # Fetch the JSON body with HTTPie and pretty-print it.
-    BODY=$(http --body --print=b GET "$WEB_URL")
-    echo "$BODY" | gum format --type code --language json || echo "$BODY"
-
-    # Validate the JSON contract with jq.
-    OK=$(echo "$BODY" | jq -r '.ok' 2>/dev/null || echo "error")
-    REPLICATED=$(echo "$BODY" | jq -r '.replica.replicated' 2>/dev/null || echo "error")
+        # Validate the JSON contract with jq.
+        OK=$(echo "$BODY" | jq -r '.ok' 2>/dev/null || echo "error")
+        REPLICATED=$(echo "$BODY" | jq -r '.replica.replicated' 2>/dev/null || echo "error")
+    else
+        gum style --foreground 196 "✘ Web endpoint unreachable at $WEB_URL (is openresty up?)"
+        OK="unreachable"; REPLICATED="unreachable"
+    fi
 
     if [ "$OK" = "true" ] && [ "$REPLICATED" = "true" ]; then
         gum style --foreground 42 "✔ Web endpoint OK — primary write replicated to replica"
