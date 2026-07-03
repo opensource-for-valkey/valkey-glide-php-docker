@@ -104,6 +104,12 @@ docker compose exec valkey-tools valkey-cli -c -h vk-s2-1b-p set foo bar
 docker compose exec valkey-tools valkey-cli -c -h vk-s3-1c-p get foo
 ```
 
+For a GUI, open **[Valkey Admin](https://valkey-admin.valkey.io/)** at
+`http://localhost:8081` (host 8080 is taken by the web demo). It runs on
+`valkey-net`, so add connections by container hostname on port `6379`:
+`valkey` (standalone), `valkey-replica`, and `vk-s1-1a-p` as the cluster
+seed (it discovers the other 11 nodes).
+
 ## Project Structure
 
 | File | Description |
@@ -132,6 +138,7 @@ docker compose exec valkey-tools valkey-cli -c -h vk-s3-1c-p get foo
 | `valkey-cluster.dockerfile` | Valkey 9 cluster node; advertises its AZ via `--availability-zone` (`VALKEY_AZ`). |
 | `scripts/cluster-init.sh` | One-shot: forms the 12-node cluster with explicit replica→primary+AZ placement. |
 | `valkey-tools` (compose service) | Idle Valkey jump box on `valkey-net`; gives you `valkey-cli` inside the network to reach the port-less cluster nodes. |
+| `valkey-admin` (compose service) | [Valkey Admin](https://valkey-admin.valkey.io/) web UI at `http://localhost:8081`; on `valkey-net` so it reaches every instance (standalone, replica, cluster) by hostname. |
 | `docker-compose.yml` | Full stack: OpenResty, PHP-FPM, MariaDB, PostgreSQL, Memcached, standalone Valkey + replica, and the 12-node AZ-aware cluster. |
 
 ## Architecture
