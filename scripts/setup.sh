@@ -108,4 +108,25 @@ Inspect via any node, or the valkey-tools jump box; -c follows redirects:
 EOF
 
 echo
+
+# --- Cluster access notes ---------------------------------------------
+gum style --border rounded --padding "0 1" --border-foreground 214 \
+    "Notes — reaching the Valkey cluster"
+
+gum format <<'EOF'
+
+- The 12 cluster nodes publish **no host ports** (bare `6379/tcp`); they are
+  reachable only from *inside* `valkey-net`. All nodes sharing port 6379 is
+  fine — each container has its own IP, so ports only collide when mapped to
+  the same host port (which the cluster nodes are not).
+- Connect from within the network: use the **valkey-tools** jump box (or any
+  node) and address nodes by hostname. `-c` follows MOVED/ASK redirects:
+    docker compose exec valkey-tools valkey-cli -c -h vk-s1-1a-p cluster nodes
+- You **cannot** reach the cluster from the macOS host directly: there is no
+  published port, and Docker Desktop runs the engine in a VM, so the host has
+  no route to the `172.18.x.x` bridge IPs. Even if a port were published,
+  cluster redirects would hand out those unroutable internal addresses.
+EOF
+
+echo
 docker compose ps
