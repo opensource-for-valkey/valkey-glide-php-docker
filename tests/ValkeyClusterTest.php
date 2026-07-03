@@ -100,6 +100,45 @@ class ValkeyClusterTest extends ValkeyTestBase
         $this->assertCount(9, $replicas, 'expected 9 replicas');
     }
 
+    // Precise AZ spread: 3 shards, each = 1 primary + 3 replicas, where the
+    // 3 replicas cover all 3 AZs exactly once each, and the 3 primaries span
+    // all 3 AZs one-per-AZ. This is the N+1-per-AZ guarantee that makes
+    // AZ-affinity reads always local, enforced by scripts/cluster-init.sh.
+    public function testEachShardSpreadsOneReplicaPerAz(): void
+    {
+        $shards = $this->readShards();
+
+        $this->assertCount(3, $shards, 'expected 3 shards (one per primary)');
+
+        $primaryAzs = [];
+        foreach ($shards as $masterId => $shard) {
+            $short = substr($masterId, 0, 8);
+
+            // Each shard: exactly 1 primary + 3 replicas.
+            $this->assertNotNull($shard['primary'], "shard $short has no primary");
+            $this->assertCount(3, $shard['replicas'], "shard $short must have 3 replicas");
+
+            // The 3 replicas cover all 3 AZs exactly once each.
+            $replicaAzs = array_map(fn($r) => $r['az'], $shard['replicas']);
+            sort($replicaAzs);
+            $this->assertSame(
+                self::AZS,
+                $replicaAzs,
+                "shard $short replicas must be one-per-AZ, got: " . implode(',', $replicaAzs)
+            );
+
+            $primaryAzs[] = $shard['primary']['az'];
+        }
+
+        // Primaries are spread one per AZ across the 3 shards.
+        sort($primaryAzs);
+        $this->assertSame(
+            self::AZS,
+            $primaryAzs,
+            'primaries must span all 3 AZs one-per-AZ, got: ' . implode(',', $primaryAzs)
+        );
+    }
+
     // AZ affinity: reads issued by a client pinned to AZ X must be served
     // by nodes in AZ X. We reset per-node command stats, drive reads, then
     // assert only the pinned AZ's nodes recorded GETs.
@@ -156,6 +195,38 @@ class ValkeyClusterTest extends ValkeyTestBase
             }
             $this->assertSame(0, $getsByAz[$az], "no reads expected in $az, got {$getsByAz[$az]}");
         }
+    }
+
+    // Parse CLUSTER NODES into shards keyed by primary node-id. Each entry:
+    //   ['primary' => ['host','port','az'], 'replicas' => [ ...same... ]].
+    // CLUSTER NODES line: <id> <ip:port@cport> <flags> <master-id|-> ...
+    // For a primary the master-id field is '-'; for a replica it is the id
+    // of the primary it follows.
+    private function readShards(): array
+    {
+        $probe = new ValkeyGlide();
+        $probe->connect(addresses: [['host' => 'vk-s1-1a-p', 'port' => 6379]]);
+        $raw = (string) $probe->rawcommand('CLUSTER', 'NODES');
+
+        $shards = [];
+        foreach (array_filter(explode("\n", trim($raw))) as $line) {
+            $f = preg_split('/\s+/', trim($line));
+            $id       = $f[0];
+            $masterId = $f[3];
+            [$host, $port] = explode(':', explode('@', $f[1])[0]);
+            $node = ['host' => $host, 'port' => (int) $port, 'az' => self::azOf($host, (int) $port)];
+
+            $shardId = ($masterId === '-') ? $id : $masterId;
+            if (!isset($shards[$shardId])) {
+                $shards[$shardId] = ['primary' => null, 'replicas' => []];
+            }
+            if ($masterId === '-') {
+                $shards[$shardId]['primary'] = $node;
+            } else {
+                $shards[$shardId]['replicas'][] = $node;
+            }
+        }
+        return $shards;
     }
 
     // Resolve a node's AZ from its running config (CONFIG GET availability-zone).

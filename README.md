@@ -35,7 +35,7 @@ Interactive helper scripts live in `scripts/` and use [gum](https://github.com/c
 |-------|----------------|
 | Standalone (CLI) | PHPUnit against the standalone primary. |
 | Replica (CLI) | PHPUnit — writes to primary, reads back from the replica via a `PREFER_REPLICA` client. |
-| Cluster (CLI) | PHPUnit — 12-node AZ-aware cluster: topology shape + `AZ_AFFINITY` reads served from the client's own AZ. |
+| Cluster (CLI) | PHPUnit — 12-node AZ-aware cluster: topology shape, per-shard one-replica-per-AZ spread, and `AZ_AFFINITY` reads served from the client's own AZ. |
 | MariaDB (CLI) | PHPUnit — PHP → MariaDB connectivity via PDO (`pdo_mysql`). |
 | PostgreSQL (CLI) | PHPUnit — PHP → PostgreSQL connectivity via PDO (`pdo_pgsql`). |
 | SQLite (CLI) | PHPUnit — PHP → SQLite connectivity via PDO (`pdo_sqlite`). |
