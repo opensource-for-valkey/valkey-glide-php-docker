@@ -8,10 +8,10 @@
 #    validates the response with HTTPie + jq.
 #
 # Usage:
-#   ./scripts/test.sh          # interactive suite picker (gum choose)
-#   ./scripts/test.sh --all    # run every suite, no prompt (CI-friendly)
+#   ./scripts/test.sh          # run every suite (default)
+#   ./scripts/test.sh --pick   # interactive suite picker (gum choose)
 #
-# When stdin is not a TTY (e.g. CI, piped), --all is assumed automatically.
+# --all is still accepted as a no-op alias for the default behavior.
 
 set -euo pipefail
 
@@ -51,9 +51,10 @@ fi
 # --- Pick which suites to run --------------------------------------------
 ALL_SUITES=$'Standalone (CLI)\nReplica (CLI)\nMariaDB (CLI)\nPostgreSQL (CLI)\nSQLite (CLI)\nMemcached (CLI)\nWeb server (HTTPie)'
 
-RUN_ALL=0
-[ "${1:-}" = "--all" ] && RUN_ALL=1
-# No interactive terminal? Fall back to running everything.
+# Run everything by default. Only prompt when --pick is passed on a TTY.
+RUN_ALL=1
+[ "${1:-}" = "--pick" ] && RUN_ALL=0
+# No interactive terminal? Always run everything regardless of flags.
 [ -t 0 ] || RUN_ALL=1
 
 if [ "$RUN_ALL" -eq 1 ]; then
