@@ -1,4 +1,6 @@
-FROM valkey/valkey:9-alpine
+# valkey-bundle (Valkey + json/search/bloom/ldap modules). ValkeyJSON is
+# required by Valkey Admin (it runs JSON.TYPE while building the dashboard).
+FROM valkey/valkey-bundle:latest
 
 # Cluster-mode Valkey node. Each node advertises its simulated AWS
 # availability zone via --availability-zone, which is what an AZ-affinity
@@ -9,12 +11,14 @@ FROM valkey/valkey:9-alpine
 # Default AZ; overridden per-service via `environment: VALKEY_AZ=...`.
 ENV VALKEY_AZ=us-east-1a
 
-# Entrypoint bakes in the cluster flags and injects the per-node AZ so
-# compose only needs to set VALKEY_AZ. exec keeps valkey-server as PID 1.
+# Bake in the cluster flags and inject the per-node AZ. We delegate to the
+# bundle entrypoint (rather than exec valkey-server directly) so it still
+# auto-loads every module in /usr/lib/valkey; it drops privileges to the
+# valkey user and exec's valkey-server with our flags + the module args.
 RUN printf '%s\n' \
     '#!/bin/sh' \
     'set -e' \
-    'exec valkey-server \' \
+    'exec bundle-docker-entrypoint.sh valkey-server \' \
     '  --port 6379 \' \
     '  --cluster-enabled yes \' \
     '  --cluster-config-file nodes.conf \' \

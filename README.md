@@ -110,6 +110,11 @@ For a GUI, open **[Valkey Admin](https://valkey-admin.valkey.io/)** at
 `valkey` (standalone), `valkey-replica`, and `vk-s1-1a-p` as the cluster
 seed (it discovers the other 11 nodes).
 
+> Valkey Admin runs `JSON.TYPE` to build its dashboard, so every Valkey
+> instance uses the `valkey/valkey-bundle` image (which ships ValkeyJSON).
+> Stock `valkey/valkey` has no modules and the dashboard fails with
+> `unknown command 'JSON.TYPE'`.
+
 ## Project Structure
 
 | File | Description |
@@ -134,8 +139,8 @@ seed (it discovers the other 11 nodes).
 | `php.dockerfile` | PHP 8.4 FPM with Rust toolchain and valkey-glide compiled from source. |
 | `openresty.dockerfile` | OpenResty (nginx + LuaJIT) — the web server in use. |
 | `nginx.dockerfile` | Stock Nginx stable-alpine — kept for reference. |
-| `valkey.dockerfile` | Valkey 9 Alpine image (standalone primary + replica). |
-| `valkey-cluster.dockerfile` | Valkey 9 cluster node; advertises its AZ via `--availability-zone` (`VALKEY_AZ`). |
+| `valkey.dockerfile` | `valkey/valkey-bundle` image (standalone primary + replica); bundles the json/search/bloom/ldap modules. |
+| `valkey-cluster.dockerfile` | `valkey/valkey-bundle` cluster node; advertises its AZ via `--availability-zone` (`VALKEY_AZ`) and auto-loads the bundled modules. |
 | `scripts/cluster-init.sh` | One-shot: forms the 12-node cluster with explicit replica→primary+AZ placement. |
 | `valkey-tools` (compose service) | Idle Valkey jump box on `valkey-net`; gives you `valkey-cli` inside the network to reach the port-less cluster nodes. |
 | `valkey-admin` (compose service) | [Valkey Admin](https://valkey-admin.valkey.io/) web UI at `http://localhost:8081`; on `valkey-net` so it reaches every instance (standalone, replica, cluster) by hostname. |
