@@ -29,12 +29,15 @@ Interactive helper scripts live in `scripts/` and use [gum](https://github.com/c
 ./scripts/teardown.sh   # stop and remove the stack
 ```
 
-`test.sh` runs three suites (choose any subset via gum; when stdin is not a TTY or `--all` is passed, all suites run automatically):
+`test.sh` runs these suites (choose any subset via gum; when stdin is not a TTY or `--all` is passed, all suites run automatically):
 
 | Suite | What it checks |
 |-------|----------------|
 | Standalone (CLI) | PHPUnit against the standalone primary. |
 | Replica (CLI) | PHPUnit — writes to primary, reads back from the replica via a `PREFER_REPLICA` client. |
+| MariaDB (CLI) | PHPUnit — PHP → MariaDB connectivity via PDO (`pdo_mysql`). |
+| PostgreSQL (CLI) | PHPUnit — PHP → PostgreSQL connectivity via PDO (`pdo_pgsql`). |
+| SQLite (CLI) | PHPUnit — PHP → SQLite connectivity via PDO (`pdo_sqlite`). |
 | Web server (HTTPie) | `GET http://localhost:8080/`, validates the JSON with HTTPie + `jq`. |
 
 ## Testing (manual)
@@ -68,6 +71,10 @@ http GET http://localhost:8080/
 | `tests/ValkeyTestBase.php` | Abstract PHPUnit test class with all 18 test methods. |
 | `tests/ValkeyStandaloneTest.php` | Standalone test implementation (extends ValkeyTestBase). |
 | `tests/ValkeyReplicaTest.php` | Replication test — writes to primary, reads from replica. |
+| `tests/DatabaseTestBase.php` | Abstract PDO connectivity test class (shared DB assertions). |
+| `tests/MariaDbConnectionTest.php` | PHP → MariaDB connectivity via PDO. |
+| `tests/PostgresConnectionTest.php` | PHP → PostgreSQL connectivity via PDO. |
+| `tests/SqliteConnectionTest.php` | PHP → SQLite connectivity via PDO. |
 | `web/index.php` | JSON endpoint: writes to primary, reads back via a `PREFER_REPLICA` client. |
 | `scripts/setup.sh` | gum-driven build + start + PHPUnit install. |
 | `scripts/test.sh` | gum-driven CLI + web test runner (HTTPie + jq validation). |
