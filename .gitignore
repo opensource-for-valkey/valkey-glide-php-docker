@@ -1,5 +1,6 @@
 mariadb/
 postgres/
+sqlite/*.sqlite
 src/
 src
 .env

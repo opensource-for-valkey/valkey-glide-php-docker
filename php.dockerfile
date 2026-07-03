@@ -28,6 +28,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     wget \
     git \
     unzip \
+    sqlite3 \
     nano \
     vim \
     gcc \
@@ -65,9 +66,10 @@ RUN cargo install cbindgen
 
 # --- PHP extensions ---------------------------------------------------
 # Laravel's required extensions (ctype, mbstring, openssl, tokenizer, xml,
-# ...) ship with the base image. These add database access (MySQL/MariaDB
-# + PostgreSQL) plus the commonly-needed extras: bcmath, zip (Composer),
-# pcntl (queue workers), intl (localization), gd + exif (image handling).
+# ...) ship with the base image, as do pdo_sqlite + sqlite3 for SQLite.
+# These add the remaining database drivers (MySQL/MariaDB + PostgreSQL)
+# plus the commonly-needed extras: bcmath, zip (Composer), pcntl (queue
+# workers), intl (localization), gd + exif (image handling).
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
     docker-php-ext-install pdo pdo_mysql pdo_pgsql bcmath zip pcntl intl gd exif
 

@@ -26,6 +26,9 @@ services:
       - ./src:/var/www/html
       - ./tests:/var/www/cli
       - ./web:/var/www/web
+      # SQLite is file-based (no server); the database file lives here.
+      - ./sqlite:/var/www/sqlite
+      - ./databases-sqlite.sql:/var/www/databases-sqlite.sql:ro
     depends_on:
       - valkey
       - valkey-replica

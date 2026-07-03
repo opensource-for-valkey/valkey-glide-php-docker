@@ -39,6 +39,10 @@ gum spin --spinner dot --title "Waiting for replica link..." -- \
 gum spin --spinner dot --title "Installing PHPUnit in PHP container..." -- \
     docker exec "$PHP_CONTAINER" sh -c "cd /var/www/cli/ && composer install --no-interaction || composer require --dev phpunit/phpunit --no-interaction"
 
+# SQLite is file-based; create and seed the database file if missing.
+gum spin --spinner dot --title "Seeding SQLite database..." -- \
+    docker exec "$PHP_CONTAINER" sh -c "test -f /var/www/sqlite/valkeyglide.sqlite || sqlite3 /var/www/sqlite/valkeyglide.sqlite < /var/www/databases-sqlite.sql"
+
 gum style --foreground 42 "Stack is up."
 echo
 gum format -- "- Web endpoint: **http://localhost:8080**"
