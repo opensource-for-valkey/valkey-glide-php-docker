@@ -29,6 +29,10 @@ services:
       # SQLite is file-based (no server); the database file lives here.
       - ./sqlite:/var/www/sqlite
       - ./databases-sqlite.sql:/var/www/databases-sqlite.sql:ro
+      # TLS certs (read-only) so a GLIDE client can verify the CA when
+      # talking to the `tls`-profile services. Empty until you run
+      # ./certs/gen-test-certs.sh; harmless when unused.
+      - ./certs:/etc/certs:ro
     depends_on:
       - valkey
       - valkey-replica
@@ -81,7 +85,7 @@ services:
     build:
       context: .
       dockerfile: valkey.dockerfile
-    command: valkey-server --replicaof valkey 6379
+    command: valkey-server --replicaof valkey 6379 --io-threads 4 --io-threads-do-reads yes --maxmemory 250mb
     ports:
       - 6380:6379
     depends_on:
@@ -113,54 +117,66 @@ services:
   # Shard 1 — primary in us-east-1a
   vk-s1-1a-p:
     build: &vk-cluster-build { context: ., dockerfile: valkey-cluster.dockerfile }
+    image: valkey-glide-cluster-node
     environment: { VALKEY_AZ: us-east-1a }
     networks: [valkey-net]
   vk-s1-1a-r:
     build: *vk-cluster-build
+    image: valkey-glide-cluster-node
     environment: { VALKEY_AZ: us-east-1a }
     networks: [valkey-net]
   vk-s1-1b-r:
     build: *vk-cluster-build
+    image: valkey-glide-cluster-node
     environment: { VALKEY_AZ: us-east-1b }
     networks: [valkey-net]
   vk-s1-1c-r:
     build: *vk-cluster-build
+    image: valkey-glide-cluster-node
     environment: { VALKEY_AZ: us-east-1c }
     networks: [valkey-net]
 
   # Shard 2 — primary in us-east-1b
   vk-s2-1b-p:
     build: *vk-cluster-build
+    image: valkey-glide-cluster-node
     environment: { VALKEY_AZ: us-east-1b }
     networks: [valkey-net]
   vk-s2-1a-r:
     build: *vk-cluster-build
+    image: valkey-glide-cluster-node
     environment: { VALKEY_AZ: us-east-1a }
     networks: [valkey-net]
   vk-s2-1b-r:
     build: *vk-cluster-build
+    image: valkey-glide-cluster-node
     environment: { VALKEY_AZ: us-east-1b }
     networks: [valkey-net]
   vk-s2-1c-r:
     build: *vk-cluster-build
+    image: valkey-glide-cluster-node
     environment: { VALKEY_AZ: us-east-1c }
     networks: [valkey-net]
 
   # Shard 3 — primary in us-east-1c
   vk-s3-1c-p:
     build: *vk-cluster-build
+    image: valkey-glide-cluster-node
     environment: { VALKEY_AZ: us-east-1c }
     networks: [valkey-net]
   vk-s3-1a-r:
     build: *vk-cluster-build
+    image: valkey-glide-cluster-node
     environment: { VALKEY_AZ: us-east-1a }
     networks: [valkey-net]
   vk-s3-1b-r:
     build: *vk-cluster-build
+    image: valkey-glide-cluster-node
     environment: { VALKEY_AZ: us-east-1b }
     networks: [valkey-net]
   vk-s3-1c-r:
     build: *vk-cluster-build
+    image: valkey-glide-cluster-node
     environment: { VALKEY_AZ: us-east-1c }
     networks: [valkey-net]
 
@@ -168,6 +184,7 @@ services:
   # replica->primary+AZ placement, then exits.
   valkey-cluster-init:
     build: *vk-cluster-build
+    image: valkey-glide-cluster-node
     entrypoint: ["/bin/sh", "/cluster-init.sh"]
     volumes:
       - ./scripts/cluster-init.sh:/cluster-init.sh:ro
@@ -232,6 +249,136 @@ services:
     depends_on:
       - vk-s1-1a-p
     restart: unless-stopped
+    networks: [valkey-net]
+
+  # =====================================================================
+  # TLS profile — opt-in, encrypted Valkey (standalone + replica + 6-node
+  # cluster). These services listen ONLY on the TLS port (--port 0), so
+  # they need certificates. They are gated behind the `tls` profile so the
+  # default `docker compose up` does NOT start them (and won't crash-loop
+  # when certs are absent).
+  #
+  # Generate certs once, then start the profile:
+  #   ./certs/gen-test-certs.sh
+  #   docker compose --profile tls up -d --build
+  #
+  # The ./certs directory is mounted read-only at /etc/certs on every TLS
+  # service (and on `php`, above, so the GLIDE client can verify the CA).
+  # ---------------------------------------------------------------------
+
+  # Standalone TLS primary. Published on host 6390 (plaintext `valkey` keeps
+  # 6379). Connect a GLIDE client with `use_tls: true` + the CA cert.
+  valkey-tls:
+    build:
+      context: .
+      dockerfile: valkey-tls.dockerfile
+    profiles: [tls]
+    ports:
+      - 6390:6379
+    volumes:
+      - ./certs:/etc/certs:ro
+    networks:
+      - valkey-net
+
+  # TLS read replica of valkey-tls. Reuses valkey-tls.dockerfile and overrides
+  # the command to replicate (over TLS) from the primary. Published on 6391.
+  valkey-tls-replica:
+    build:
+      context: .
+      dockerfile: valkey-tls.dockerfile
+    profiles: [tls]
+    command: >
+      valkey-server
+      --tls-port 6379 --port 0
+      --tls-replication yes
+      --replicaof valkey-tls 6379
+      --tls-cert-file /etc/certs/server.crt
+      --tls-key-file /etc/certs/server.key
+      --tls-ca-cert-file /etc/certs/ca.crt
+      --tls-auth-clients no
+      --io-threads 4 --io-threads-do-reads yes --maxmemory 250mb
+    ports:
+      - 6391:6379
+    volumes:
+      - ./certs:/etc/certs:ro
+    depends_on:
+      - valkey-tls
+    networks:
+      - valkey-net
+
+  # --- TLS Valkey cluster (AZ-aware, us-east-1) --------------------------
+  # 3 shards x (1 primary + 1 replica) = 6 nodes. The replica lives in a
+  # different AZ from its primary (Multi-AZ failover pattern):
+  #
+  #   Shard 1  primary=1a  replica=1b
+  #   Shard 2  primary=1b  replica=1c
+  #   Shard 3  primary=1c  replica=1a
+  #
+  # Nodes publish no host ports; the cluster bus and client protocol are
+  # both TLS (--tls-cluster yes). Topology is formed by valkey-cluster-tls-init.
+  vk-tls-s1-1a-p:
+    build: &vk-tls-build { context: ., dockerfile: valkey-cluster-tls.dockerfile }
+    image: valkey-glide-cluster-tls-node
+    profiles: [tls]
+    environment: { VALKEY_AZ: us-east-1a }
+    volumes: ["./certs:/etc/certs:ro"]
+    networks: [valkey-net]
+  vk-tls-s1-1b-r:
+    build: *vk-tls-build
+    image: valkey-glide-cluster-tls-node
+    profiles: [tls]
+    environment: { VALKEY_AZ: us-east-1b }
+    volumes: ["./certs:/etc/certs:ro"]
+    networks: [valkey-net]
+
+  vk-tls-s2-1b-p:
+    build: *vk-tls-build
+    image: valkey-glide-cluster-tls-node
+    profiles: [tls]
+    environment: { VALKEY_AZ: us-east-1b }
+    volumes: ["./certs:/etc/certs:ro"]
+    networks: [valkey-net]
+  vk-tls-s2-1c-r:
+    build: *vk-tls-build
+    image: valkey-glide-cluster-tls-node
+    profiles: [tls]
+    environment: { VALKEY_AZ: us-east-1c }
+    volumes: ["./certs:/etc/certs:ro"]
+    networks: [valkey-net]
+
+  vk-tls-s3-1c-p:
+    build: *vk-tls-build
+    image: valkey-glide-cluster-tls-node
+    profiles: [tls]
+    environment: { VALKEY_AZ: us-east-1c }
+    volumes: ["./certs:/etc/certs:ro"]
+    networks: [valkey-net]
+  vk-tls-s3-1a-r:
+    build: *vk-tls-build
+    image: valkey-glide-cluster-tls-node
+    profiles: [tls]
+    environment: { VALKEY_AZ: us-east-1a }
+    volumes: ["./certs:/etc/certs:ro"]
+    networks: [valkey-net]
+
+  # One-shot: waits for all 6 TLS nodes, forms the cluster with explicit
+  # replica->primary+AZ placement (over TLS), then exits.
+  valkey-cluster-tls-init:
+    build: *vk-tls-build
+    image: valkey-glide-cluster-tls-node
+    profiles: [tls]
+    entrypoint: ["/bin/sh", "/cluster-init-tls.sh"]
+    volumes:
+      - ./scripts/cluster-init-tls.sh:/cluster-init-tls.sh:ro
+      - ./certs:/etc/certs:ro
+    restart: "no"
+    depends_on:
+      - vk-tls-s1-1a-p
+      - vk-tls-s1-1b-r
+      - vk-tls-s2-1b-p
+      - vk-tls-s2-1c-r
+      - vk-tls-s3-1c-p
+      - vk-tls-s3-1a-r
     networks: [valkey-net]
 
 networks:

@@ -55,6 +55,9 @@ gum spin --spinner dot --title "Forming AZ-aware Valkey cluster (12 nodes)..." -
 gum spin --spinner dot --title "Waiting for cluster_state:ok..." -- \
     bash -c 'until docker compose exec -T vk-s1-1a-p valkey-cli cluster info 2>/dev/null | grep -q "cluster_state:ok"; do sleep 1; done'
 
+# Display full stack status (services + cluster topology).
+"$(dirname "$0")/status.sh"
+
 gum spin --spinner dot --title "Installing PHPUnit in PHP container..." -- \
     docker exec "$PHP_CONTAINER" sh -c "cd /var/www/cli/ && composer install --no-interaction || composer require --dev phpunit/phpunit --no-interaction"
 
@@ -136,4 +139,3 @@ gum format <<'EOF'
 EOF
 
 echo
-docker compose ps

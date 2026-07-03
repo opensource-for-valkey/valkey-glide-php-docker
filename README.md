@@ -114,6 +114,53 @@ info) is accurate for that node — keyspace-wide views cover only that node's
 slot range. It needs no server-side modules, so the nodes stay on the stock
 `valkey/valkey:9-alpine` image.
 
+## Connecting over TLS
+
+An optional **`tls` profile** runs encrypted Valkey alongside the plaintext
+stack: a standalone primary + replica and a 6-node AZ-aware cluster (3 shards
+× 1 primary + 1 replica). These services listen **only** on the TLS port
+(`--port 0`), so they need certificates and are kept out of the default
+`docker compose up` behind the profile.
+
+**1. Generate local dev certificates** (self-signed CA + server/client certs):
+
+```bash
+./certs/gen-test-certs.sh
+```
+
+This writes `ca.crt`, `server.crt/key`, `client.crt/key`, `valkey.crt/key`,
+and `valkey.dh` into `certs/`. They're git-ignored — for local use only.
+
+**2. Start the TLS profile:**
+
+```bash
+docker compose --profile tls up -d --build
+```
+
+| Service | Host port | Notes |
+|---------|-----------|-------|
+| `valkey-tls` | `6390` | Standalone TLS primary. |
+| `valkey-tls-replica` | `6391` | TLS replica of `valkey-tls`. |
+| `vk-tls-s{1,2,3}-*` | — | 6-node TLS cluster (no host ports; reach via `valkey-tls-*` hostnames on `valkey-net`). |
+| `valkey-cluster-tls-init` | — | One-shot; forms the cluster over TLS, then exits. |
+
+**3. Connect.** The servers set `--tls-auth-clients no`, so clients only need
+to trust the CA — no client certificate required. From `valkey-cli`:
+
+```bash
+# Standalone (from the host):
+valkey-cli -h 127.0.0.1 -p 6390 --tls --cacert certs/ca.crt ping
+
+# Cluster (from inside the network; -c follows redirects):
+docker compose exec valkey-tls valkey-cli -c -h vk-tls-s1-1a-p \
+    --tls --cacert /etc/certs/ca.crt cluster nodes
+```
+
+With a GLIDE client, enable TLS via `use_tls: true` (the `php` service mounts
+`./certs` at `/etc/certs` so the CA is available in-container). Flip the
+servers to `--tls-auth-clients yes` and hand the client `client.crt`/
+`client.key` for mutual TLS.
+
 ## Project Structure
 
 | File | Description |
@@ -140,7 +187,11 @@ slot range. It needs no server-side modules, so the nodes stay on the stock
 | `nginx.dockerfile` | Stock Nginx stable-alpine — kept for reference. |
 | `valkey.dockerfile` | Valkey 9 Alpine image (standalone primary + replica). |
 | `valkey-cluster.dockerfile` | Valkey 9 cluster node; advertises its AZ via `--availability-zone` (`VALKEY_AZ`). |
+| `valkey-tls.dockerfile` | TLS standalone Valkey (`tls` profile); listens only on the TLS port. |
+| `valkey-cluster-tls.dockerfile` | TLS cluster node (`tls` profile); encrypts the client protocol + cluster bus, advertises its AZ. |
+| `certs/gen-test-certs.sh` | Generates a self-signed CA + server/client certs for local TLS (output is git-ignored). |
 | `scripts/cluster-init.sh` | One-shot: forms the 12-node cluster with explicit replica→primary+AZ placement. |
+| `scripts/cluster-init-tls.sh` | One-shot: forms the 6-node TLS cluster (3 shards × 1 primary + 1 replica) over TLS. |
 | `valkey-tools` (compose service) | Idle Valkey jump box on `valkey-net`; gives you `valkey-cli` inside the network to reach the port-less cluster nodes. |
 | `betterdb` (compose service) | [BetterDB Monitor](https://www.betterdb.com/monitor) web UI at `http://localhost:3001`; on `valkey-net`, `DB_HOST` preset to the cluster seed `vk-s1-1a-p` (add other nodes in the UI). |
 | `docker-compose.yml` | Full stack: OpenResty, PHP-FPM, MariaDB, PostgreSQL, Memcached, standalone Valkey + replica, and the 12-node AZ-aware cluster. |

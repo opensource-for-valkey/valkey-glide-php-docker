@@ -20,6 +20,9 @@ RUN printf '%s\n' \
     '  --cluster-config-file nodes.conf \' \
     '  --cluster-node-timeout 5000 \' \
     '  --appendonly yes \' \
+    '  --io-threads 4 \' \
+    '  --io-threads-do-reads yes \' \
+    '  --maxmemory 250mb \' \
     '  --availability-zone "${VALKEY_AZ}"' \
     > /usr/local/bin/cluster-node.sh && \
     chmod +x /usr/local/bin/cluster-node.sh

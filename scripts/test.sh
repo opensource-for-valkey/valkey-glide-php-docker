@@ -49,7 +49,7 @@ else
 fi
 
 # --- Pick which suites to run --------------------------------------------
-ALL_SUITES=$'Standalone (CLI)\nReplica (CLI)\nCluster (CLI)\nMariaDB (CLI)\nPostgreSQL (CLI)\nSQLite (CLI)\nMemcached (CLI)\nWeb server (HTTPie)'
+ALL_SUITES=$'Standalone (CLI)\nReplica (CLI)\nCluster (CLI)\nGLIDE features (CLI)\nMariaDB (CLI)\nPostgreSQL (CLI)\nSQLite (CLI)\nMemcached (CLI)\nWeb server (HTTPie)'
 
 # Run everything by default. Only prompt when --pick is passed on a TTY.
 RUN_ALL=1
@@ -62,10 +62,11 @@ if [ "$RUN_ALL" -eq 1 ]; then
     gum style --foreground 244 "Running all suites (non-interactive)."
 else
     CHOICES=$(gum choose --no-limit \
-        --selected="Standalone (CLI),Replica (CLI),Cluster (CLI),MariaDB (CLI),PostgreSQL (CLI),SQLite (CLI),Memcached (CLI),Web server (HTTPie)" \
+        --selected="Standalone (CLI),Replica (CLI),Cluster (CLI),GLIDE features (CLI),MariaDB (CLI),PostgreSQL (CLI),SQLite (CLI),Memcached (CLI),Web server (HTTPie)" \
         "Standalone (CLI)" \
         "Replica (CLI)" \
         "Cluster (CLI)" \
+        "GLIDE features (CLI)" \
         "MariaDB (CLI)" \
         "PostgreSQL (CLI)" \
         "SQLite (CLI)" \
@@ -73,41 +74,94 @@ else
         "Web server (HTTPie)")
 fi
 
+# --- Results tracking ----------------------------------------------------
+RESULTS=""
+
+record() {
+    local suite="$1" status="$2"
+    RESULTS="${RESULTS}${suite}\t${status}\n"
+}
+
 FAILED=0
 
 if grep -q "Standalone (CLI)" <<<"$CHOICES"; then
     gum style --foreground 39 "▶ PHPUnit: standalone"
-    run_phpunit "ValkeyStandaloneTest.php" || FAILED=1
+    if run_phpunit "ValkeyStandaloneTest.php"; then
+        record "Standalone" "PASS"
+    else
+        record "Standalone" "FAIL"
+        FAILED=1
+    fi
 fi
 
 if grep -q "Replica (CLI)" <<<"$CHOICES"; then
     gum style --foreground 39 "▶ PHPUnit: replica (read from replica)"
-    run_phpunit "ValkeyReplicaTest.php" || FAILED=1
+    if run_phpunit "ValkeyReplicaTest.php"; then
+        record "Replica" "PASS"
+    else
+        record "Replica" "FAIL"
+        FAILED=1
+    fi
 fi
 
 if grep -q "Cluster (CLI)" <<<"$CHOICES"; then
     gum style --foreground 39 "▶ PHPUnit: cluster (AZ-affinity, 3 shards x 4 nodes)"
-    run_phpunit "ValkeyClusterTest.php" || FAILED=1
+    if run_phpunit "ValkeyClusterTest.php"; then
+        record "Cluster" "PASS"
+    else
+        record "Cluster" "FAIL"
+        FAILED=1
+    fi
+fi
+
+if grep -q "GLIDE features (CLI)" <<<"$CHOICES"; then
+    gum style --foreground 39 "▶ PHPUnit: GLIDE features (AZ routing, cross-slot, sharded pub/sub)"
+    if run_phpunit "ValkeyGlideTest.php"; then
+        record "GLIDE features" "PASS"
+    else
+        record "GLIDE features" "FAIL"
+        FAILED=1
+    fi
 fi
 
 if grep -q "MariaDB (CLI)" <<<"$CHOICES"; then
     gum style --foreground 39 "▶ PHPUnit: MariaDB connectivity (PDO)"
-    run_phpunit "MariaDbConnectionTest.php" || FAILED=1
+    if run_phpunit "MariaDbConnectionTest.php"; then
+        record "MariaDB" "PASS"
+    else
+        record "MariaDB" "FAIL"
+        FAILED=1
+    fi
 fi
 
 if grep -q "PostgreSQL (CLI)" <<<"$CHOICES"; then
     gum style --foreground 39 "▶ PHPUnit: PostgreSQL connectivity (PDO)"
-    run_phpunit "PostgresConnectionTest.php" || FAILED=1
+    if run_phpunit "PostgresConnectionTest.php"; then
+        record "PostgreSQL" "PASS"
+    else
+        record "PostgreSQL" "FAIL"
+        FAILED=1
+    fi
 fi
 
 if grep -q "SQLite (CLI)" <<<"$CHOICES"; then
     gum style --foreground 39 "▶ PHPUnit: SQLite connectivity (PDO)"
-    run_phpunit "SqliteConnectionTest.php" || FAILED=1
+    if run_phpunit "SqliteConnectionTest.php"; then
+        record "SQLite" "PASS"
+    else
+        record "SQLite" "FAIL"
+        FAILED=1
+    fi
 fi
 
 if grep -q "Memcached (CLI)" <<<"$CHOICES"; then
     gum style --foreground 39 "▶ PHPUnit: Memcached connectivity (ext-memcached)"
-    run_phpunit "MemcachedConnectionTest.php" || FAILED=1
+    if run_phpunit "MemcachedConnectionTest.php"; then
+        record "Memcached" "PASS"
+    else
+        record "Memcached" "FAIL"
+        FAILED=1
+    fi
 fi
 
 if grep -q "Web server (HTTPie)" <<<"$CHOICES"; then
@@ -132,11 +186,33 @@ if grep -q "Web server (HTTPie)" <<<"$CHOICES"; then
 
     if [ "$OK" = "true" ] && [ "$REPLICATED" = "true" ]; then
         gum style --foreground 42 "✔ Web endpoint OK — primary write replicated to replica"
+        record "Web server" "PASS"
     else
         gum style --foreground 196 "✘ Web endpoint FAILED (ok=$OK, replicated=$REPLICATED)"
+        record "Web server" "FAIL"
         FAILED=1
     fi
 fi
+
+# --- Summary table -------------------------------------------------------
+echo
+gum style --bold --foreground 39 "Results:"
+
+GREEN=$'\033[32m'
+RED=$'\033[31m'
+RESET=$'\033[0m'
+
+{
+    printf "SUITE\tSTATUS\n"
+    printf "%b" "$RESULTS" | while IFS=$'\t' read -r suite status; do
+        [ -z "$suite" ] && continue
+        if [ "$status" = "PASS" ]; then
+            printf "%s\t${GREEN}%s${RESET}\n" "$suite" "$status"
+        else
+            printf "%s\t${RED}%s${RESET}\n" "$suite" "$status"
+        fi
+    done
+} | gum table --print --separator $'\t' --border.foreground 212
 
 echo
 if [ "$FAILED" -eq 0 ]; then

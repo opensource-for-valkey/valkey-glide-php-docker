@@ -5,6 +5,14 @@ src/
 src
 .env
 
+# Generated TLS certs (local dev only — never commit keys). The generator
+# script certs/gen-test-certs.sh stays tracked; its output does not.
+certs/*.crt
+certs/*.key
+certs/*.dh
+certs/*.txt
+certs/openssl.cnf
+
 # MacOS =================================================================================
 
 # General
