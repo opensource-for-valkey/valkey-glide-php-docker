@@ -68,7 +68,7 @@ gum format -- "- Web endpoint: **http://localhost:8080**"
 gum format -- "- Primary:      **localhost:6379**"
 gum format -- "- Replica:      **localhost:6380** (read-only)"
 gum format -- "- Cluster:      **12 nodes** (3 shards x 1 primary + 3 AZ replicas, internal-only)"
-gum format -- "- Valkey Admin: **http://localhost:8081** (web UI, add connections manually)"
+gum format -- "- BetterDB:     **http://localhost:3001** (monitoring UI, connected to the primary)"
 echo
 
 # --- Connection hints -------------------------------------------------
@@ -107,8 +107,9 @@ Inspect via any node, or the valkey-tools jump box; -c follows redirects:
   memcstat --servers=127.0.0.1:11211
   printf 'stats\r\nquit\r\n' | nc 127.0.0.1 11211
 
-**Valkey Admin** — web UI at http://localhost:8081 (openresty owns 8080).
-It runs on valkey-net, so add connections by container hostname + 6379:
+**BetterDB Monitor** — web UI at http://localhost:3001 (openresty owns 8080).
+Runs on valkey-net; DB_HOST is preset to the standalone primary. Add more
+connections in the UI by container hostname + 6379:
   standalone   valkey            replica  valkey-replica
   cluster      vk-s1-1a-p  (seed — it discovers the other 11 nodes)
 EOF

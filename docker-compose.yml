@@ -201,23 +201,33 @@ services:
       - vk-s1-1a-p
     networks: [valkey-net]
 
-  # Valkey Admin — web UI for inspecting Valkey servers/clusters.
-  # https://valkey-admin.valkey.io/deployment/docker/
-  # On valkey-net so it can reach every instance by hostname. Web mode: add
-  # connections through the UI (the cluster nodes have no host ports, but
-  # valkey-admin reaches them internally). Published on host 8081 because
-  # openresty already owns 8080. Suggested connections to add in the UI:
-  #   standalone   valkey:6379            replica  valkey-replica:6379
-  #   cluster      vk-s1-1a-p:6379 (seed; it discovers the other 11 nodes)
-  valkey-admin:
-    image: valkey/valkey-admin:latest
+  # BetterDB Monitor — observability UI for Valkey/Redis (slowlog, command
+  # history, client analytics, anomaly detection). https://www.betterdb.com/monitor
+  # On valkey-net so DB_HOST resolves by container hostname. Needs no server
+  # modules, so the nodes stay on the stock valkey:9-alpine image.
+  # DB_HOST points at the standalone primary; add the replica or cluster nodes
+  # (valkey-replica, vk-s1-1a-p, ...) as extra connections in the UI at :3001.
+  betterdb:
+    image: betterdb/monitor:latest
     ports:
-      - 8081:8080
+      - 3001:3001
     environment:
-      DEPLOYMENT_MODE: Web
+      BETTERDB_LICENSE_KEY: beta
+      DB_HOST: valkey
+      DB_PORT: 6379
+      DB_TYPE: valkey
+      STORAGE_TYPE: memory
+    # The image's healthcheck hits localhost, which resolves to IPv6 [::1]
+    # inside the container while the app listens on IPv4 — so it never goes
+    # healthy. Override to probe 127.0.0.1 explicitly.
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3001/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
     depends_on:
       - valkey
-      - vk-s1-1a-p
     restart: unless-stopped
     networks: [valkey-net]
 

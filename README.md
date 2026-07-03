@@ -104,16 +104,12 @@ docker compose exec valkey-tools valkey-cli -c -h vk-s2-1b-p set foo bar
 docker compose exec valkey-tools valkey-cli -c -h vk-s3-1c-p get foo
 ```
 
-For a GUI, open **[Valkey Admin](https://valkey-admin.valkey.io/)** at
-`http://localhost:8081` (host 8080 is taken by the web demo). It runs on
-`valkey-net`, so add connections by container hostname on port `6379`:
-`valkey` (standalone), `valkey-replica`, and `vk-s1-1a-p` as the cluster
-seed (it discovers the other 11 nodes).
-
-> Valkey Admin runs `JSON.TYPE` to build its dashboard, so every Valkey
-> instance uses the `valkey/valkey-bundle` image (which ships ValkeyJSON).
-> Stock `valkey/valkey` has no modules and the dashboard fails with
-> `unknown command 'JSON.TYPE'`.
+For a GUI, open **[BetterDB Monitor](https://www.betterdb.com/monitor)** at
+`http://localhost:3001` (host 8080 is taken by the web demo). It runs on
+`valkey-net` with `DB_HOST` preset to the standalone `valkey` primary; add
+the replica or cluster nodes (`valkey-replica`, `vk-s1-1a-p` as the cluster
+seed) as extra connections in the UI. BetterDB needs no server-side modules,
+so the nodes stay on the stock `valkey/valkey:9-alpine` image.
 
 ## Project Structure
 
@@ -139,11 +135,11 @@ seed (it discovers the other 11 nodes).
 | `php.dockerfile` | PHP 8.4 FPM with Rust toolchain and valkey-glide compiled from source. |
 | `openresty.dockerfile` | OpenResty (nginx + LuaJIT) — the web server in use. |
 | `nginx.dockerfile` | Stock Nginx stable-alpine — kept for reference. |
-| `valkey.dockerfile` | `valkey/valkey-bundle` image (standalone primary + replica); bundles the json/search/bloom/ldap modules. |
-| `valkey-cluster.dockerfile` | `valkey/valkey-bundle` cluster node; advertises its AZ via `--availability-zone` (`VALKEY_AZ`) and auto-loads the bundled modules. |
+| `valkey.dockerfile` | Valkey 9 Alpine image (standalone primary + replica). |
+| `valkey-cluster.dockerfile` | Valkey 9 cluster node; advertises its AZ via `--availability-zone` (`VALKEY_AZ`). |
 | `scripts/cluster-init.sh` | One-shot: forms the 12-node cluster with explicit replica→primary+AZ placement. |
 | `valkey-tools` (compose service) | Idle Valkey jump box on `valkey-net`; gives you `valkey-cli` inside the network to reach the port-less cluster nodes. |
-| `valkey-admin` (compose service) | [Valkey Admin](https://valkey-admin.valkey.io/) web UI at `http://localhost:8081`; on `valkey-net` so it reaches every instance (standalone, replica, cluster) by hostname. |
+| `betterdb` (compose service) | [BetterDB Monitor](https://www.betterdb.com/monitor) web UI at `http://localhost:3001`; on `valkey-net`, `DB_HOST` preset to the standalone primary (add replica/cluster nodes in the UI). |
 | `docker-compose.yml` | Full stack: OpenResty, PHP-FPM, MariaDB, PostgreSQL, Memcached, standalone Valkey + replica, and the 12-node AZ-aware cluster. |
 
 ## Architecture
