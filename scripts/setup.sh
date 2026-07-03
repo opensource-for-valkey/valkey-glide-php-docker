@@ -2,14 +2,24 @@
 #
 # setup.sh — build and start the Valkey GLIDE PHP stack with gum.
 #
-# Brings up nginx, php-fpm, mariadb, the standalone Valkey primary and its
-# read-only replica, then installs PHPUnit inside the PHP container.
+# Brings up OpenResty, php-fpm, MariaDB, PostgreSQL, Memcached, the
+# standalone Valkey primary and its read-only replica, then installs
+# PHPUnit inside the PHP container and prints connection hints.
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 PHP_CONTAINER="valkey-glide-php-docker-php-1"
+
+# Load credentials from .env (fall back to the documented defaults).
+[ -f .env ] && set -a && . ./.env && set +a
+DB=${MARIADB_DATABASE:-valkeyglide}
+DB_USER=${MARIADB_USER:-valkeyglide}
+DB_PASS=${MARIADB_PASSWORD:-valkeyglide_secret}
+PG_DB=${POSTGRES_DB:-valkeyglide}
+PG_USER=${POSTGRES_USER:-valkeyglide}
+PG_PASS=${POSTGRES_PASSWORD:-valkeyglide_secret}
 
 require() {
     command -v "$1" >/dev/null 2>&1 || {
@@ -48,5 +58,38 @@ echo
 gum format -- "- Web endpoint: **http://localhost:8080**"
 gum format -- "- Primary:      **localhost:6379**"
 gum format -- "- Replica:      **localhost:6380** (read-only)"
+echo
+
+# --- Connection hints -------------------------------------------------
+gum style --border rounded --padding "0 1" --border-foreground 39 \
+    "How to connect (install the CLI tools on your host if needed)"
+
+gum format <<EOF
+
+**MariaDB** — \`mycli\` (pip install mycli) or the bundled client:
+  mycli -h 127.0.0.1 -P 3306 -u ${DB_USER} -p${DB_PASS} ${DB}
+  docker compose exec mariadb mariadb -u ${DB_USER} -p${DB_PASS} ${DB}
+
+**PostgreSQL** — \`pgcli\` (pip install pgcli) or the bundled client:
+  PGPASSWORD=${PG_PASS} pgcli -h 127.0.0.1 -p 5432 -U ${PG_USER} ${PG_DB}
+  docker compose exec postgres psql -U ${PG_USER} -d ${PG_DB}
+
+**SQLite** — \`litecli\` (pip install litecli) or sqlite3:
+  litecli sqlite/valkeyglide.sqlite
+  docker compose exec php sqlite3 /var/www/sqlite/valkeyglide.sqlite
+
+**Valkey (primary)** — valkey-cli (redis-cli also works):
+  valkey-cli -h 127.0.0.1 -p 6379
+  docker compose exec valkey valkey-cli
+
+**Valkey (replica, read-only)** — port 6380:
+  valkey-cli -h 127.0.0.1 -p 6380
+  docker compose exec valkey-replica valkey-cli
+
+**Memcached** — no REPL; use libmemcached-tools or nc:
+  memcstat --servers=127.0.0.1:11211
+  printf 'stats\r\nquit\r\n' | nc 127.0.0.1 11211
+EOF
+
 echo
 docker compose ps
