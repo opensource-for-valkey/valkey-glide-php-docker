@@ -32,6 +32,7 @@ services:
     depends_on:
       - valkey
       - valkey-replica
+      - memcached
     networks:
       - valkey-net
 
@@ -85,6 +86,13 @@ services:
       - 6380:6379
     depends_on:
       - valkey
+    networks:
+      - valkey-net
+
+  memcached:
+    image: memcached:1.6-alpine
+    ports:
+      - 11211:11211
     networks:
       - valkey-net
 

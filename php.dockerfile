@@ -49,6 +49,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libjpeg-dev \
     libfreetype6-dev \
     libpq-dev \
+    libmemcached-dev \
     protobuf-compiler \
     protobuf-c-compiler \
     libprotobuf-c-dev \
@@ -87,6 +88,9 @@ RUN curl -L https://github.com/valkey-io/valkey-glide-php/releases/download/v${V
 
 # phpredis (ext-redis) so both drivers are available side by side.
 RUN pecl install redis && docker-php-ext-enable redis
+
+# ext-memcached (built against libmemcached) for the memcached service.
+RUN pecl install memcached && docker-php-ext-enable memcached
 
 # valkey-glide extension config (extension=valkey_glide).
 ADD valkey.ini /usr/local/etc/php/conf.d/valkey.ini

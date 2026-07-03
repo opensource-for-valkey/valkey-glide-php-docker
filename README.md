@@ -38,6 +38,7 @@ Interactive helper scripts live in `scripts/` and use [gum](https://github.com/c
 | MariaDB (CLI) | PHPUnit — PHP → MariaDB connectivity via PDO (`pdo_mysql`). |
 | PostgreSQL (CLI) | PHPUnit — PHP → PostgreSQL connectivity via PDO (`pdo_pgsql`). |
 | SQLite (CLI) | PHPUnit — PHP → SQLite connectivity via PDO (`pdo_sqlite`). |
+| Memcached (CLI) | PHPUnit — PHP → Memcached connectivity via `ext-memcached`. |
 | Web server (HTTPie) | `GET http://localhost:8080/`, validates the JSON with HTTPie + `jq`. |
 
 ## Testing (manual)
@@ -75,6 +76,7 @@ http GET http://localhost:8080/
 | `tests/MariaDbConnectionTest.php` | PHP → MariaDB connectivity via PDO. |
 | `tests/PostgresConnectionTest.php` | PHP → PostgreSQL connectivity via PDO. |
 | `tests/SqliteConnectionTest.php` | PHP → SQLite connectivity via PDO. |
+| `tests/MemcachedConnectionTest.php` | PHP → Memcached connectivity via ext-memcached. |
 | `web/index.php` | JSON endpoint: writes to primary, reads back via a `PREFER_REPLICA` client. |
 | `scripts/setup.sh` | gum-driven build + start + PHPUnit install. |
 | `scripts/test.sh` | gum-driven CLI + web test runner (HTTPie + jq validation). |
@@ -87,7 +89,7 @@ http GET http://localhost:8080/
 | `openresty.dockerfile` | OpenResty (nginx + LuaJIT) — the web server in use. |
 | `nginx.dockerfile` | Stock Nginx stable-alpine — kept for reference. |
 | `valkey.dockerfile` | Valkey 9 Alpine image. |
-| `docker-compose.yml` | Full stack: OpenResty, PHP-FPM, MariaDB, standalone Valkey + read-only replica. |
+| `docker-compose.yml` | Full stack: OpenResty, PHP-FPM, MariaDB, PostgreSQL, Memcached, standalone Valkey + read-only replica. |
 
 ## Architecture
 
