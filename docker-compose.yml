@@ -205,15 +205,18 @@ services:
   # history, client analytics, anomaly detection). https://www.betterdb.com/monitor
   # On valkey-net so DB_HOST resolves by container hostname. Needs no server
   # modules, so the nodes stay on the stock valkey:9-alpine image.
-  # DB_HOST points at the standalone primary; add the replica or cluster nodes
-  # (valkey-replica, vk-s1-1a-p, ...) as extra connections in the UI at :3001.
+  # DB_HOST points at a cluster seed node (vk-s1-1a-p). BetterDB takes a single
+  # DB_HOST, and its per-node telemetry (slowlog, clients, memory, commandstats,
+  # CLUSTER INFO/NODES) is accurate for that node; keyspace-wide views only
+  # cover that node's slot range. Add the other nodes (vk-s2-1b-p, vk-s3-1c-p,
+  # replicas, or the standalone `valkey`) as extra connections in the UI at :3001.
   betterdb:
     image: betterdb/monitor:latest
     ports:
       - 3001:3001
     environment:
       BETTERDB_LICENSE_KEY: beta
-      DB_HOST: valkey
+      DB_HOST: vk-s1-1a-p
       DB_PORT: 6379
       DB_TYPE: valkey
       STORAGE_TYPE: memory
@@ -227,7 +230,7 @@ services:
       retries: 3
       start_period: 10s
     depends_on:
-      - valkey
+      - vk-s1-1a-p
     restart: unless-stopped
     networks: [valkey-net]
 

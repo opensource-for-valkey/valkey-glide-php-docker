@@ -108,10 +108,10 @@ Inspect via any node, or the valkey-tools jump box; -c follows redirects:
   printf 'stats\r\nquit\r\n' | nc 127.0.0.1 11211
 
 **BetterDB Monitor** — web UI at http://localhost:3001 (openresty owns 8080).
-Runs on valkey-net; DB_HOST is preset to the standalone primary. Add more
-connections in the UI by container hostname + 6379:
+Runs on valkey-net; DB_HOST is preset to the cluster seed vk-s1-1a-p (per-node
+telemetry). Add more connections in the UI by container hostname + 6379:
   standalone   valkey            replica  valkey-replica
-  cluster      vk-s1-1a-p  (seed — it discovers the other 11 nodes)
+  cluster      vk-s2-1b-p, vk-s3-1c-p, ...  (one connection per node)
 EOF
 
 echo

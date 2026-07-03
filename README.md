@@ -106,10 +106,13 @@ docker compose exec valkey-tools valkey-cli -c -h vk-s3-1c-p get foo
 
 For a GUI, open **[BetterDB Monitor](https://www.betterdb.com/monitor)** at
 `http://localhost:3001` (host 8080 is taken by the web demo). It runs on
-`valkey-net` with `DB_HOST` preset to the standalone `valkey` primary; add
-the replica or cluster nodes (`valkey-replica`, `vk-s1-1a-p` as the cluster
-seed) as extra connections in the UI. BetterDB needs no server-side modules,
-so the nodes stay on the stock `valkey/valkey:9-alpine` image.
+`valkey-net` with `DB_HOST` preset to a cluster seed node (`vk-s1-1a-p`); add
+the other nodes (`vk-s2-1b-p`, `vk-s3-1c-p`, replicas, or the standalone
+`valkey`) as extra connections in the UI. BetterDB takes a single `DB_HOST`
+and its per-node telemetry (slowlog, clients, memory, commandstats, cluster
+info) is accurate for that node — keyspace-wide views cover only that node's
+slot range. It needs no server-side modules, so the nodes stay on the stock
+`valkey/valkey:9-alpine` image.
 
 ## Project Structure
 
@@ -139,7 +142,7 @@ so the nodes stay on the stock `valkey/valkey:9-alpine` image.
 | `valkey-cluster.dockerfile` | Valkey 9 cluster node; advertises its AZ via `--availability-zone` (`VALKEY_AZ`). |
 | `scripts/cluster-init.sh` | One-shot: forms the 12-node cluster with explicit replica→primary+AZ placement. |
 | `valkey-tools` (compose service) | Idle Valkey jump box on `valkey-net`; gives you `valkey-cli` inside the network to reach the port-less cluster nodes. |
-| `betterdb` (compose service) | [BetterDB Monitor](https://www.betterdb.com/monitor) web UI at `http://localhost:3001`; on `valkey-net`, `DB_HOST` preset to the standalone primary (add replica/cluster nodes in the UI). |
+| `betterdb` (compose service) | [BetterDB Monitor](https://www.betterdb.com/monitor) web UI at `http://localhost:3001`; on `valkey-net`, `DB_HOST` preset to the cluster seed `vk-s1-1a-p` (add other nodes in the UI). |
 | `docker-compose.yml` | Full stack: OpenResty, PHP-FPM, MariaDB, PostgreSQL, Memcached, standalone Valkey + replica, and the 12-node AZ-aware cluster. |
 
 ## Architecture
