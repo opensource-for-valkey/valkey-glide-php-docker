@@ -1,7 +1,7 @@
 FROM php:8.4-fpm
 
 # --- Build arguments --------------------------------------------------
-ARG VALKEY_GLIDE_VERSION=1.1.0
+ARG VALKEY_GLIDE_VERSION=1.1.2
 # Node.js LTS major version (24 = "Krypton"). Bump when a new LTS lands.
 ARG NODE_MAJOR=24
 
@@ -51,8 +51,10 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libpq-dev \
     libmemcached-dev \
     protobuf-compiler \
+    libprotobuf-dev \
     protobuf-c-compiler \
     libprotobuf-c-dev \
+    libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # --- Node.js (current LTS via NodeSource) -----------------------------
@@ -82,9 +84,7 @@ RUN curl -L https://github.com/php/pie/releases/latest/download/pie.phar -o /usr
 
 # --- PHP packages: valkey-glide + phpredis ----------------------------
 # Download and install the valkey-glide extension from the pinned release.
-RUN curl -L https://github.com/valkey-io/valkey-glide-php/releases/download/v${VALKEY_GLIDE_VERSION}/valkey_glide-${VALKEY_GLIDE_VERSION}.tgz \
-        -o valkey_glide-${VALKEY_GLIDE_VERSION}.tgz && \
-    pecl install valkey_glide-${VALKEY_GLIDE_VERSION}.tgz
+RUN pie install valkey-io/valkey-glide-php:${VALKEY_GLIDE_VERSION}
 
 # phpredis (ext-redis) so both drivers are available side by side.
 RUN pecl install redis && docker-php-ext-enable redis
