@@ -61,9 +61,9 @@ gum spin --spinner dot --title "Waiting for cluster_state:ok..." -- \
 gum spin --spinner dot --title "Installing PHPUnit in PHP container..." -- \
     docker exec "$PHP_CONTAINER" sh -c "cd /var/www/cli/ && composer install --no-interaction || composer require --dev phpunit/phpunit --no-interaction"
 
-# SQLite is file-based; create and seed the database file if missing.
+# SQLite is file-based; seed the database if the expected table is missing.
 gum spin --spinner dot --title "Seeding SQLite database..." -- \
-    docker exec "$PHP_CONTAINER" sh -c "test -f /var/www/sqlite/valkeyglide.sqlite || sqlite3 /var/www/sqlite/valkeyglide.sqlite < /var/www/databases-sqlite.sql"
+    docker exec "$PHP_CONTAINER" sh -c "sqlite3 /var/www/sqlite/valkeyglide.sqlite 'SELECT 1 FROM cache_entries LIMIT 1' 2>/dev/null || sqlite3 /var/www/sqlite/valkeyglide.sqlite < /var/www/databases-sqlite.sql"
 
 gum style --foreground 42 "Stack is up."
 echo
